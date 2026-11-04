@@ -10,6 +10,8 @@ const { createSignalingServer } = require('./signaling-server');
 const { NicknameRegistry } = require('./nickname-registry');
 const { CodeRegistry } = require('./code-registry');
 const { SessionStore } = require('./session-store');
+const { VERSION } = require('./version');
+const { startUpdateCheck } = require('./update-check');
 
 const logger = {
   info: (message) => console.log(`${new Date().toISOString()} ${message}`),
@@ -43,6 +45,7 @@ async function main() {
     process.exit(1);
   }
 
+  logger.info(`Serveur TACNET version ${VERSION}`);
   for (const notice of config.notices) logger.info(notice);
   logger.info(`Pseudos réservés : ${nicknames.size} (${config.usersPath})`);
   logger.info(`Codes de session réservés : ${codes.size} (${config.sessionCodesPath})`);
@@ -55,6 +58,8 @@ async function main() {
   const server = createSignalingServer({
     server: httpServer, passwordHash: config.passwordHash, logger, limits: config.limits, nicknames, codes, sessions, trustProxy: config.trustProxy,
   });
+
+  let updateCheck = null;
 
   httpServer.on('error', (err) => {
     logger.warn(`Démarrage impossible : ${err.message}`);
@@ -70,10 +75,13 @@ async function main() {
       logger.warn('TLS désactivé : le mot de passe circule en clair. À réserver à un réseau de confiance ou à un reverse proxy qui chiffre.');
     }
     if (config.trustProxy) logger.info('Adresse des clients lue dans X-Forwarded-For (TRUST_PROXY=true) : ce port ne doit être joignable que par le reverse proxy.');
+    // Après le démarrage : un réseau lent ne retarde jamais l'ouverture du serveur
+    updateCheck = startUpdateCheck({ logger });
   });
 
   async function shutdown() {
     logger.info('Arrêt du serveur…');
+    updateCheck?.stop();
     await server.close();
     process.exit(0);
   }

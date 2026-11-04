@@ -7,6 +7,7 @@ const { verifyPassword } = require('./password');
 const { NicknameRegistry } = require('./nickname-registry');
 const { CodeRegistry } = require('./code-registry');
 const { SessionStore } = require('./session-store');
+const { VERSION, MIN_CLIENT_VERSION } = require('./version');
 
 // Code de fermeture WebSocket d'un départ volontaire (le client quitte, ce n'est pas une coupure)
 const NORMAL_CLOSURE = 1000;
@@ -463,11 +464,18 @@ function createSignalingServer({
 
   /* ---------- Connexions ---------- */
 
-  function createClient(socket, ip, identityToken) {
+  /** « ready » : l'application y lit la version du serveur, pour prévenir si l'un des deux est en retard sur l'autre. */
+  function readyMessage(client, resumed) {
+    return { type: MESSAGE_TYPES.READY, clientId: client.id, resumeToken: client.token, resumed, serverVersion: VERSION, minClientVersion: MIN_CLIENT_VERSION };
+  }
+
+  function createClient(socket, ip, identityToken, version = null) {
     const client = {
       id: randomUUID(),
       token: randomBytes(24).toString('base64url'),
       identityToken,
+      // Version de l'application (null : application ancienne, qui ne l'annonce pas)
+      version,
       ip,
       socket,
       nickname: null,
@@ -503,7 +511,7 @@ function createSignalingServer({
     client.socket = socket;
     client.lastState = null;
     client.lastRouting = null;
-    send(client, { type: MESSAGE_TYPES.READY, clientId: client.id, resumeToken: client.token, resumed: true });
+    send(client, readyMessage(client, true));
     for (const message of client.pending.splice(0)) sendRaw(client, message);
     if (client.session) {
       client.session.setConnected(client.id, true);
@@ -560,8 +568,8 @@ function createSignalingServer({
       return null;
     }
 
-    const client = createClient(socket, ip, message.identityToken);
-    send(client, { type: MESSAGE_TYPES.READY, clientId: client.id, resumeToken: client.token, resumed: false });
+    const client = createClient(socket, ip, message.identityToken, message.clientVersion);
+    send(client, readyMessage(client, false));
     return client;
   }
 

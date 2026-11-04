@@ -1,9 +1,10 @@
 // Protocole JSON échangé avec les clients.
 // Le client (src/renderer/js/net/protocol.js) en garde une copie : les garder synchronisés.
+const { parseVersion } = require('./version');
 
 const MESSAGE_TYPES = Object.freeze({
   // Client -> serveur
-  AUTH: 'auth',                     // { password, resumeToken?, identityToken, nickname? }  obligatoirement le premier message
+  AUTH: 'auth',                     // { password, resumeToken?, identityToken, nickname?, clientVersion? }  obligatoirement le premier message
   // Devient gérant ; template : canaux et règles à recréer ; code : celui de la session relancée, s'il est disponible ;
   // resume : retrouver la session telle qu'elle était si le serveur l'a gardée (template ne sert alors qu'à défaut)
   CREATE_SESSION: 'create-session', // { nickname, template?, code?, resume? }
@@ -37,7 +38,8 @@ const MESSAGE_TYPES = Object.freeze({
   ANSWER: 'answer',
   ICE_CANDIDATE: 'ice-candidate',   // payload : liste de candidats (envoyés par lots)
   // Serveur -> client
-  READY: 'ready',                   // { clientId, resumeToken, resumed }
+  // serverVersion : version de ce serveur ; minClientVersion : application la plus ancienne qu'il accepte sans avertissement
+  READY: 'ready',                   // { clientId, resumeToken, resumed, serverVersion, minClientVersion }
   // Authentification refusée, juste avant la fermeture forcée du socket : le client arrête de
   // se reconnecter et redemande le mot de passe (code 'invalid-password' ou 'too-many-attempts')
   AUTH_ERROR: 'auth_error',         // { code, message }
@@ -180,6 +182,7 @@ const CODE_PATTERN = /^[A-Z0-9]{4}$/;
 const ID_PATTERN = /^[\w-]{1,64}$/;
 const MAX_PASSWORD_LENGTH = 256;
 const MAX_TOKEN_LENGTH = 128;
+const MAX_VERSION_LENGTH = 32;
 // Jeton d'identité d'un PC : UUID v4 généré une fois pour toutes par l'application
 const IDENTITY_TOKEN_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_HEARS = 64;
@@ -260,12 +263,14 @@ const CHANNEL_NAME_ERROR = `Nom de canal invalide (${CHANNEL_NAME_LENGTH.min} à
 
 /** Champs attendus pour chaque type : retourne le message nettoyé, ou un texte d'erreur. */
 const PARSERS = {
-  [MESSAGE_TYPES.AUTH]: ({ password, resumeToken, identityToken, nickname }) => {
+  [MESSAGE_TYPES.AUTH]: ({ password, resumeToken, identityToken, nickname, clientVersion }) => {
     if (typeof password !== 'string' || password.length > MAX_PASSWORD_LENGTH) return 'Mot de passe manquant.';
     const token = typeof resumeToken === 'string' && resumeToken.length <= MAX_TOKEN_LENGTH ? resumeToken : null;
     return {
       password,
       resumeToken: token,
+      // Absente d'une ancienne application, ou illisible : sans importance pour la connexion
+      clientVersion: typeof clientVersion === 'string' && parseVersion(clientVersion) ? clientVersion.trim().slice(0, MAX_VERSION_LENGTH) : null,
       // Jeton invalide ou absent (ancienne version) : refus au moment d'utiliser un pseudo
       identityToken: typeof identityToken === 'string' && IDENTITY_TOKEN_PATTERN.test(identityToken) ? identityToken.toLowerCase() : null,
       // Pseudo facultatif : pas encore saisi au premier lancement, ou en cours de saisie
