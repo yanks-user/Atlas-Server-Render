@@ -1,0 +1,21 @@
+{
+  "name": "tacnet-server",
+  "version": "1.0.0",
+  "description": "Serveur de sessions et de signalisation WebRTC (communication vocale)",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "set-password": "node scripts/set-password.js",
+    "users": "node scripts/users.js"
+  },
+  "license": "SEE LICENSE IN ../LICENCE.txt",
+  "type": "commonjs",
+  "dependencies": {
+    "dotenv": "^18.0.9",
+    "selfsigned": "^5.5.0",
+    "ws": "^8.22.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

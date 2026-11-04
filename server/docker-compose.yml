@@ -1,0 +1,32 @@
+# Serveur de sessions TACNET. Avant le premier lancement : cp config.env.example config.env (voir README.html)
+services:
+  tacnet:
+    build: .
+    restart: unless-stopped
+    # Reçoit l'arrêt proprement : les sessions gardées sont enregistrées avant de quitter
+    init: true
+    stop_grace_period: 15s
+    ports:
+      # Autre port pour les joueurs : changez le premier nombre, par exemple "9000:8080".
+      # Derrière un reverse proxy, remplacez par "127.0.0.1:8080:8080" (voir README.html, « Domaine et HTTPS »)
+      - "8080:8080"
+    volumes:
+      # Refuse de démarrer sans config.env, plutôt que de créer un dossier vide à sa place
+      - type: bind
+        source: ./config.env
+        target: /app/config.env
+        read_only: true
+        bind:
+          create_host_path: false
+      # Configuration, certificat, pseudos, codes et sessions gardées : survivent aux mises à jour de l'image
+      - tacnet-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  tacnet-data:

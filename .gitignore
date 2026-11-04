@@ -1,0 +1,22 @@
+# Ce dépôt ne sert qu'à déployer le serveur TACNET sur Render (render.yaml) : seul ce qui est listé ici est envoyé.
+# L'application, l'exécutable, la documentation et les profils de test restent sur le PC.
+/*
+!/.gitignore
+!/render.yaml
+!/LICENCE.txt
+!/server/
+
+# Même dans server/ : jamais de dépendances, de mots de passe ni de données du serveur
+node_modules/
+*.tmp
+.env
+
+# Mot de passe du serveur de signalisation
+server/server-config.json
+server/config.env
+server/tls/
+
+# Pseudos et codes de session réservés (empreintes des jetons d'identité des joueurs) et sessions gardées
+server/users.json
+server/session-codes.json
+server/sessions.json

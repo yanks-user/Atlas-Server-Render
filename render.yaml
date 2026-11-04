@@ -1,0 +1,34 @@
+# Déploiement automatique du serveur TACNET sur Render (https://render.com).
+#
+#   1. Ce dépôt GitHub ne contient que le serveur (voir .gitignore) : ni application, ni mot de passe, ni données.
+#   2. Render : New + > Blueprint > choisissez le dépôt.
+#   3. Render demande SERVER_PASSWORD (8 caractères minimum) : c'est le mot de passe que les joueurs saisiront.
+#   4. Chaque push sur la branche principale redéploie le serveur.
+#
+# Adresse à donner aux joueurs (Paramètres > Serveur) : wss://<nom-du-service>.onrender.com, sans port et SANS empreinte.
+# Guide complet : README.html fourni avec TACNET, section « Héberger sur Render ».
+services:
+  - type: web
+    name: tacnet-server
+    runtime: docker
+    # Le Dockerfile et son contexte de construction sont dans server/
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: ./server
+    # Frankfurt : le plus proche de la France. Ne peut plus être changé après la création du service.
+    region: frankfurt
+    # Plan gratuit : le service s'endort après 15 minutes sans trafic (réveil : environ 1 minute) et son système de fichiers
+    # est effacé à chaque redémarrage. Les pseudos réservés, les codes et les sessions gardées ne survivent donc pas.
+    # Pour un serveur permanent, choisissez un plan payant (voir README.html : Héberger sur Render).
+    plan: free
+    envVars:
+      # Saisi une seule fois par vous, dans Render, à la création : jamais écrit dans le dépôt.
+      # (Pour que Render en génère un lui-même : remplacez « sync: false » par « generateValue: true ».)
+      - key: SERVER_PASSWORD
+        sync: false
+      # Render chiffre déjà les connexions avec son propre certificat (wss://) : le serveur reste en ws:// derrière.
+      - key: TLS
+        value: "off"
+      # Render est un reverse proxy : l'adresse des joueurs est lue dans X-Forwarded-For (blocage des mots de passe erronés).
+      - key: TRUST_PROXY
+        value: "true"
+      # PORT est fourni par Render (10000 par défaut) : le serveur le lit, rien à régler.

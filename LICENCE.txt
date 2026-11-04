@@ -1,0 +1,47 @@
+LICENCE DE TACNET
+Version 1, novembre 2026
+
+Copyright (c) 2026 Yann Bouthors.
+Contact : bouthorsyann@gmail.com
+Tous droits réservés, sauf ce qui est permis ci-dessous.
+
+Cette licence couvre TACNET : l'application, le serveur et leur documentation.
+Les composants tiers gardent leurs propres licences (voir le dossier licenses).
+
+
+VOUS POUVEZ, GRATUITEMENT
+
+- Utiliser TACNET, à titre personnel, associatif ou professionnel.
+- Héberger le serveur pour vous et les personnes avec qui vous communiquez.
+- Adapter sa configuration : config.env, docker-compose.yml, config.json, reverse proxy.
+- Partager gratuitement des copies non modifiées, avec ce fichier et le dossier licenses.
+
+
+VOUS NE POUVEZ PAS, SANS L'ACCORD ÉCRIT DE L'AUTEUR
+
+- Vendre TACNET ou le faire payer, y compris sous forme de service hébergé.
+- Modifier son code, ou distribuer une version modifiée.
+- Réutiliser son code dans un autre logiciel.
+- Retirer ce fichier ou les mentions de licence, ou présenter TACNET comme votre création.
+
+
+CE QUI RESTE TOUJOURS PERMIS
+
+- Ce texte ne limite pas les droits que vous donnent les licences des composants tiers.
+  En particulier, vous pouvez remplacer libUIOHook par une version modifiée et faire
+  l'ingénierie inverse nécessaire pour déboguer ces modifications
+  (voir licenses/LISEZ-MOI.txt).
+- Ce que la loi vous autorise même sans permission reste permis.
+
+
+À PROPOS DU DÉVELOPPEMENT
+
+TACNET est développé en « vibecoding » : le code est produit avec l'aide d'une
+intelligence artificielle, guidée par l'auteur à partir d'instructions en langage naturel.
+Cette mention est donnée à titre d'information ; elle ne modifie pas les termes de cette licence.
+
+
+AUCUNE GARANTIE
+
+TACNET est fourni tel quel, sans aucune garantie. Dans les limites permises par la loi,
+l'auteur n'est pas responsable des dommages liés à son utilisation.

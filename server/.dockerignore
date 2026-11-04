@@ -1,0 +1,14 @@
+# Le Dockerfile ne copie que package*.json, src et scripts : seconde barrière pour les fichiers sensibles
+config.env
+.env
+server-config.json
+users.json
+session-codes.json
+sessions.json
+*.tmp
+tls/
+node_modules/
+*.html
+Dockerfile
+docker-compose.yml
+.dockerignore
