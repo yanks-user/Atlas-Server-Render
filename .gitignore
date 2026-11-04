@@ -2,6 +2,8 @@
 # L'application, l'exécutable, la documentation et les profils de test restent sur le PC.
 /*
 !/.gitignore
+!/Dockerfile
+!/.dockerignore
 !/render.yaml
 !/LICENCE.txt
 !/server/

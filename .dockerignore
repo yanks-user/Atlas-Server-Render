@@ -1,0 +1,19 @@
+# Le Dockerfile de la racine ne copie que server/package*.json, server/src et server/scripts : seconde barrière pour les fichiers sensibles
+.git
+.gitignore
+.dockerignore
+Dockerfile
+render.yaml
+LICENCE.txt
+server/Dockerfile
+server/docker-compose.yml
+server/.dockerignore
+server/config.env
+server/.env
+server/server-config.json
+server/users.json
+server/session-codes.json
+server/sessions.json
+server/*.tmp
+server/tls/
+server/node_modules/

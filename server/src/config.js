@@ -67,7 +67,7 @@ function readLimits(fileLimits = {}) {
  * Configuration du serveur. Les variables d'environnement PORT, HOST et SERVER_PASSWORD
  * (définies dans le système ou dans config.env, chargé par index.js) sont prioritaires sur
  * server-config.json (emplacement modifiable avec SERVER_CONFIG).
- * Derrière un reverse proxy qui chiffre déjà : TLS=off et TRUST_PROXY=true (voir README.html).
+ * Derrière un reverse proxy qui chiffre déjà : TLS=off et TRUST_PROXY=true (voir README.html). Sur Render (RENDER=true), c'est le défaut.
  *
  * server-config.json ne contient jamais le mot de passe, seulement son empreinte scrypt :
  * - premier lancement : un mot de passe aléatoire est généré et affiché une seule fois ;
@@ -105,9 +105,16 @@ async function loadServerConfig() {
     throw new Error(`Aucun mot de passe : lancez "npm run set-password" (fichier ${CONFIG_PATH}).`);
   }
 
+  // Render définit toujours RENDER=true. Son proxy chiffre déjà les connexions (wss://) et les transmet en clair au service :
+  // avec TLS actif le serveur serait injoignable, et sans TRUST_PROXY tous les joueurs auraient la même adresse.
+  // Sur Render, ces deux réglages ont donc d'autres valeurs par défaut ; TLS et TRUST_PROXY, s'ils sont définis, restent prioritaires.
+  const onRender = process.env.RENDER === 'true';
+
   // Une config sans clé "tls" (version précédente) passe en TLS par défaut
   const tlsFiles = fileConfig.tls === undefined ? DEFAULTS.tls : fileConfig.tls;
-  const tlsEnabled = readSwitch('TLS', 'on', 'off', true);
+  const tlsEnabled = readSwitch('TLS', 'on', 'off', !onRender);
+  const trustProxy = readSwitch('TRUST_PROXY', 'true', 'false', onRender);
+  if (onRender) notices.push(`Render détecté (RENDER=true) : TLS=${tlsEnabled ? 'on' : 'off'}, TRUST_PROXY=${trustProxy}.`);
   let tls = null;
   if (tlsEnabled && tlsFiles) {
     tls = await loadOrCreateCertificate({
@@ -122,7 +129,7 @@ async function loadServerConfig() {
     host: process.env.HOST ?? fileConfig.host ?? DEFAULTS.host,
     passwordHash,
     tls,
-    trustProxy: readSwitch('TRUST_PROXY', 'true', 'false', false),
+    trustProxy,
     limits: readLimits(fileConfig.limits),
     configPath: CONFIG_PATH,
     // Pseudos, codes réservés et sessions gardées (voir nickname-registry.js, code-registry.js, session-store.js), à côté de la configuration
