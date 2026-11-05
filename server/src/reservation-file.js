@@ -52,15 +52,34 @@ function readReservations(filePath, collection) {
  */
 function writeReservations(filePath, collection, entries, logger) {
   const content = { version: FILE_VERSION, [collection]: Object.fromEntries(entries) };
+  const text = `${JSON.stringify(content, null, 2)}\n`;
   const tmpPath = `${filePath}.tmp`;
   try {
-    fs.writeFileSync(tmpPath, `${JSON.stringify(content, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
+    fs.writeFileSync(tmpPath, text, { encoding: 'utf8', mode: 0o600 });
     fs.renameSync(tmpPath, filePath);
-    return true;
   } catch (err) {
     logger.warn(`[!] Enregistrement de ${filePath} impossible : ${err.message}`);
     return false;
   }
+  for (const listener of writeListeners) {
+    try {
+      listener(filePath, text);
+    } catch {
+      // Un observateur (copie vers un stockage durable) ne doit jamais empêcher d'enregistrer
+    }
+  }
+  return true;
 }
 
-module.exports = { hashToken, tokenMatches, readReservations, writeReservations };
+const writeListeners = new Set();
+
+/**
+ * Observe chaque écriture réussie d'un fichier de données : listener(chemin du fichier, contenu écrit).
+ * Sert à la copie vers un stockage durable facultatif (voir remote-storage.js). Retourne la fonction qui désabonne.
+ */
+function onReservationsWritten(listener) {
+  writeListeners.add(listener);
+  return () => writeListeners.delete(listener);
+}
+
+module.exports = { hashToken, tokenMatches, readReservations, writeReservations, onReservationsWritten };

@@ -73,6 +73,31 @@ function readLimits(fileLimits = {}) {
  * - premier lancement : un mot de passe aléatoire est généré et affiché une seule fois ;
  * - ancien fichier avec "password" en clair : converti automatiquement en empreinte.
  */
+/**
+ * Stockage durable facultatif (Upstash Redis, voir remote-storage.js) : UPSTASH_REDIS_REST_URL et UPSTASH_REDIS_REST_TOKEN, les noms
+ * que donne Upstash. UPSTASH_KEY_PREFIX (facultatif) sépare plusieurs serveurs qui partageraient une même base.
+ * Sans ces variables : null, les données restent dans les fichiers du serveur, comme avant.
+ */
+function readRemoteStorage() {
+  const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
+  if (!url && !token) return null;
+  // Une seule des deux : on le dit plutôt que de laisser croire que les données sont gardées
+  if (!url || !token) throw new Error('UPSTASH_REDIS_REST_URL et UPSTASH_REDIS_REST_TOKEN doivent être définis ensemble.');
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error('UPSTASH_REDIS_REST_URL n\'est pas une adresse valide (attendu : https://….upstash.io).');
+  }
+  // http:// seulement vers la machine elle-même (essais) : le jeton ne doit jamais circuler en clair sur Internet
+  const local = ['127.0.0.1', 'localhost', '[::1]'].includes(parsed.hostname);
+  if (parsed.protocol !== 'https:' && !(local && parsed.protocol === 'http:')) throw new Error('UPSTASH_REDIS_REST_URL doit commencer par https://.');
+  const prefix = process.env.UPSTASH_KEY_PREFIX?.trim() || 'tacnet:';
+  if (!/^[A-Za-z0-9:_-]{1,40}$/.test(prefix)) throw new Error('UPSTASH_KEY_PREFIX : lettres, chiffres, « : », « _ » et « - » seulement, 40 caractères au plus.');
+  return { url: url.replace(/\/+$/, ''), token, prefix };
+}
+
 async function loadServerConfig() {
   const notices = [];
   let fileConfig = readConfigFile();
@@ -136,6 +161,8 @@ async function loadServerConfig() {
     usersPath: USERS_PATH,
     sessionCodesPath: path.join(CONFIG_DIR, 'session-codes.json'),
     sessionsPath: path.join(CONFIG_DIR, 'sessions.json'),
+    remoteStorage: readRemoteStorage(),
+    onRender,
     notices,
   };
 }

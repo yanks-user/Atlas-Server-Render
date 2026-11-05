@@ -12,6 +12,7 @@ const { CodeRegistry } = require('./code-registry');
 const { SessionStore } = require('./session-store');
 const { VERSION } = require('./version');
 const { startUpdateCheck } = require('./update-check');
+const { UpstashStorage } = require('./remote-storage');
 
 const logger = {
   info: (message) => console.log(`${new Date().toISOString()} ${message}`),
@@ -32,8 +33,18 @@ async function main() {
   let nicknames;
   let codes;
   let sessions;
+  let storage = null;
   try {
     config = await loadServerConfig();
+    // Stockage durable facultatif (Upstash) : ce qu'il garde remplace les fichiers AVANT leur chargement
+    if (config.remoteStorage) {
+      storage = new UpstashStorage({
+        ...config.remoteStorage,
+        files: { users: config.usersPath, 'session-codes': config.sessionCodesPath, sessions: config.sessionsPath },
+        logger,
+      });
+      await storage.pull();
+    }
     nicknames = new NicknameRegistry({ filePath: config.usersPath, logger });
     nicknames.load();
     codes = new CodeRegistry({ filePath: config.sessionCodesPath, logger });
@@ -50,6 +61,13 @@ async function main() {
   logger.info(`Pseudos réservés : ${nicknames.size} (${config.usersPath})`);
   logger.info(`Codes de session réservés : ${codes.size} (${config.sessionCodesPath})`);
   logger.info(`Sessions gardées : ${sessions.size} (${config.sessionsPath})`);
+  if (storage) {
+    storage.start();
+    logger.info(`Stockage durable Upstash : actif (${storage.host}, clés « ${storage.prefix}… »). Pseudos, codes et sessions gardées survivent aux redémarrages.`);
+  } else if (config.onRender) {
+    // Render détecté, sans Upstash : ce que les hébergeurs doivent savoir (le plan gratuit efface le disque)
+    logger.info('Plan gratuit de Render : le disque est effacé à chaque redémarrage, redéploiement ou mise en veille, donc les pseudos réservés et les sessions gardées sont perdus (limite de Render, pas de TACNET). Option gratuite : Upstash (UPSTASH_REDIS_REST_URL et UPSTASH_REDIS_REST_TOKEN, voir le guide).');
+  }
 
   const httpServer = config.tls
     ? https.createServer({ cert: config.tls.cert, key: config.tls.key, minVersion: 'TLSv1.2' }, rejectPlainRequest)
@@ -83,6 +101,9 @@ async function main() {
     logger.info('Arrêt du serveur…');
     updateCheck?.stop();
     await server.close();
+    // Ce qui n'est pas encore parti chez Upstash part maintenant (5 secondes au plus : Render coupe le service peu après SIGTERM)
+    if (storage && !(await storage.flush())) logger.warn('[!] Upstash : des changements récents n\'ont pas pu être envoyés avant l\'arrêt.');
+    storage?.stop();
     process.exit(0);
   }
 
