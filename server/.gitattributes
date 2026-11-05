@@ -1,0 +1,2 @@
+# Un lanceur Windows doit garder ses fins de ligne CRLF, même téléchargé en zip depuis GitHub
+*.cmd -text
