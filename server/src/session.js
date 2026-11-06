@@ -73,7 +73,7 @@ function generateCode() {
  *
  * Un canal se reconnaît à son identifiant, pas à son nom : unique d'une session à l'autre, il ne change
  * ni quand on renomme le canal, ni quand sa session est relancée depuis un modèle. Ce que chacun y a
- * rattaché de son côté (touches, volumes, RAD personnalisés) le suit donc partout.
+ * rattaché de son côté (touches, volumes, RAD personnalisées) le suit donc partout.
  *
  * Prise de parole : le client n'ouvre son micro qu'une fois la parole accordée. Une émission occupe le canal
  * d'où elle part et ceux que ses cibles atteignent ; en Half-Duplex, on ne peut pas parler à un canal occupé,
@@ -298,7 +298,7 @@ class Session {
     else channel.hears.delete(sourceId);
   }
 
-  /** Autorise (ou non) les membres du canal à utiliser le RAD Général. */
+  /** Autorise (ou non) les membres du canal à utiliser la RAD Générale. */
   setBroadcast(channelId, enabled) {
     this.#channel(channelId).broadcast = enabled;
   }
@@ -412,7 +412,7 @@ class Session {
     if (intAllowed) targets.set(TARGETS.INT, new Set([speaker.channelId]));
     if (linked.size > 0 && extAllowed) targets.set(TARGETS.EXT, linked);
     if (this.canBroadcast(memberId)) targets.set(TARGETS.GLOBAL, new Set(this.channels.keys()));
-    // Un seul canal : tous avec l'option ; sinon son canal et ceux que le RAD Ext atteint
+    // Un seul canal : tous avec l'option ; sinon son canal et ceux que la RAD Ext atteint
     const reachable = this.can(memberId, PERMISSIONS.TALK_ANY_CHANNEL)
       ? [...this.channels.keys()]
       : [...(intAllowed ? [speaker.channelId] : []), ...(extAllowed ? linked : [])];
@@ -422,7 +422,7 @@ class Session {
 
   /**
    * Demande de parole vers ces cibles : accordée ou refusée d'un bloc. En Half-Duplex, refusée si un
-   * autre membre émet déjà vers l'un des canaux qu'elles atteignent, sauf pour un RAD prioritaire (voir
+   * autre membre émet déjà vers l'un des canaux qu'elles atteignent, sauf pour une RAD prioritaire (voir
    * #canCut) : les émissions qui occupaient ces canaux sont alors coupées, et la parole lui est accordée.
    * @returns {{ granted: boolean, occupant: string | null, preempted: { memberId: string, requestId: number }[] }}
    *   occupant : le membre qui occupe le canal ; preempted : les émissions coupées pour donner la parole
@@ -446,7 +446,7 @@ class Session {
     return { granted: true, occupant: null, preempted };
   }
 
-  /** Le RAD prioritaire est autorisé par la session et ce membre parle depuis un canal prioritaire. */
+  /** La RAD prioritaire est autorisé par la session et ce membre parle depuis un canal prioritaire. */
   hasPriority(memberId) {
     return this.settings.allowPriorityRad === true
       && this.channels.get(this.members.get(memberId)?.channelId)?.priority === true;

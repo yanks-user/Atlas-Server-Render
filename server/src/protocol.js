@@ -57,14 +57,14 @@ const MESSAGE_TYPES = Object.freeze({
   TX_GRANTED: 'tx_granted',         // { requestId, targets }  le micro peut s'ouvrir
   TX_DENIED: 'tx_denied',           // { requestId, targets, by }  by : le membre qui occupe la cible (null : cible non autorisée)
   // Émission annulée par le serveur : déplacé dans un autre canal, cible retirée, devenu auditeur…
-  // reason: 'priority' quand un RAD prioritaire a coupé la parole (by : le membre qui l'a prise)
+  // reason: 'priority' quand une RAD prioritaire a coupé la parole (by : le membre qui l'a prise)
   TX_REVOKED: 'tx_revoked',         // { requestId, reason?, by? }
   SPEAKING: 'speaking',             // { from, target, active }  indicateur « en train de parler », envoyé à l'audience
   PONG: 'pong',
   ERROR: 'error',                   // { code, message, request }
 });
 
-// Cibles du RAD
+// Cibles de la RAD
 const TARGETS = Object.freeze({
   INT: 'int',       // son canal uniquement
   EXT: 'ext',       // uniquement les canaux à qui le sien parle (« qui parle à qui »), s'il y en a
@@ -79,7 +79,7 @@ const channelTarget = (channelId) => `${CHANNEL_TARGET_PREFIX}${channelId}`;
 // S'y ajoutent les rôles personnalisés de la session, créés par son gérant
 const ROLES = Object.freeze({
   MEMBER: 'member',     // joueur : Int, et selon les droits de la session, Ext et changement de canal
-  DEPUTY: 'deputy',     // adjoint : canaux, règles, placement des joueurs, RAD Général, parler à un canal
+  DEPUTY: 'deputy',     // adjoint : canaux, règles, placement des joueurs, RAD Générale, parler à un canal
   LISTENER: 'listener', // auditeur : écoute seulement, ne peut pas parler
 });
 
@@ -93,7 +93,7 @@ const PERMISSIONS = Object.freeze({
   MOVE_SELF: 'moveSelf',              // changer de canal soi-même
   MOVE_MEMBERS: 'moveMembers',        // déplacer les autres
   MANAGE_CHANNELS: 'manageChannels',  // créer, renommer et supprimer des canaux
-  MANAGE_ROUTING: 'manageRouting',    // régler « qui parle à qui » et le RAD prioritaire
+  MANAGE_ROUTING: 'manageRouting',    // régler « qui parle à qui » et la RAD prioritaire
   KICK_MEMBERS: 'kickMembers',        // exclure de la session
   LOCK_SESSION: 'lockSession',        // verrouiller la session
 });
@@ -254,7 +254,7 @@ function parseTemplate(template) {
     if (!Array.isArray(channel.hears) || channel.hears.length > MAX_HEARS || !channel.hears.every(isId)) {
       return `Modèle : règles du canal « ${name} » invalides.`;
     }
-    // priority : absent d'un modèle ou d'une session gardée avant le RAD prioritaire
+    // priority : absent d'un modèle ou d'une session gardée avant la RAD prioritaire
     channels.push({ id: channel.id, name, hears: [...new Set(channel.hears)], broadcast: channel.broadcast === true, priority: channel.priority === true });
   }
   // Nom absent ou invalide : la session n'en a simplement pas
