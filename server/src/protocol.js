@@ -35,7 +35,7 @@ const MESSAGE_TYPES = Object.freeze({
   DELETE_ROLE: 'delete-role',       // { id }  ceux qui l'ont redeviennent joueurs
   REGENERATE_CODE: 'regenerate-code', // {}  nouveau code ; l'ancien ne permet plus de rejoindre
   // Champs absents inchangés ; réglages : voir DEFAULT_SESSION_SETTINGS
-  SET_SESSION_SETTINGS: 'set-session-settings', // { name?, freeMovement?, allowExt?, allowToggleMode?, allowJoinWithoutManager?, managerHearsAll?, enableRadioSounds?, halfDuplexMode?, allowPriorityRad?, hideOtherChannels? }
+  SET_SESSION_SETTINGS: 'set-session-settings', // { name?, freeMovement?, allowExt?, allowToggleMode?, allowJoinWithoutManager?, managerHearsAll?, halfDuplexMode?, allowPriorityRad?, hideOtherChannels? }
   // Client -> serveur -> pair autorisé par la matrice de routage
   OFFER: 'offer',                   // { to, payload }  relayé en { from, payload }
   ANSWER: 'answer',
@@ -115,8 +115,10 @@ const DEFAULT_SESSION_SETTINGS = Object.freeze({
   allowToggleMode: false,  // chacun peut choisir « appuyer pour démarrer / arrêter » (sinon, tous maintiennent la touche)
   allowJoinWithoutManager: true, // on peut entrer dans la session, ou la rouvrir, même si le gérant n'est pas là
   managerHearsAll: false,  // le gérant entend toutes les communications (sinon, « qui parle à qui » vaut aussi pour lui)
-  enableRadioSounds: true, // bips de prise et de fin de parole, joués par chaque client
-  halfDuplexMode: false,   // un seul émetteur à la fois vers un canal : les autres sont refusés
+  // Half-Duplex par défaut : un seul émetteur à la fois vers un canal, les autres sont refusés. Le Full-Duplex (plusieurs voix en même
+  // temps) reste possible, mais il demande plus de ressources au serveur : il faut traiter plusieurs voix en simultané.
+  // (Les bips radio ne sont plus un réglage de session : chaque joueur les choisit pour lui seul, voir « Personnalisation » dans l'application.)
+  halfDuplexMode: true,
   // Les canaux marqués prioritaires (channel.priority) coupent la parole de qui occupe un canal qu'ils visent, même en Half-Duplex
   allowPriorityRad: false,
   // Canaux masqués : chaque joueur ne voit que son canal et ceux qui y sont, et ne parle qu'à lui (secret des équipes).

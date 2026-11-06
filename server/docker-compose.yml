@@ -1,4 +1,8 @@
 # Serveur de sessions TACNET. Avant le premier lancement : cp config.env.example config.env (voir README.html)
+#
+# Pour mettre à jour le serveur proprement (deux commandes, dans le dossier du dépôt) :
+#   git pull
+#   docker compose up -d --build
 services:
   tacnet:
     build: .
