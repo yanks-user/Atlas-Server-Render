@@ -254,10 +254,15 @@ class Session {
     }
   }
 
-  /** Nom (null : sans nom) et droits des joueurs ; les champs absents ne changent pas. */
+  /**
+   * Nom (null : sans nom) et droits des joueurs ; les champs absents ne changent pas.
+   * « Appuyer pour démarrer / arrêter » n'existe qu'en Full-Duplex : en Half-Duplex, une parole qui resterait ouverte sans qu'on tienne la touche
+   * bloquerait le canal des autres. Repasser en Half-Duplex le retire, et il faut le cocher de nouveau après le retour en Full-Duplex.
+   */
   updateSettings({ name, settings = {} }) {
     if (name !== undefined) this.name = name;
     Object.assign(this.settings, settings);
+    if (this.settings.halfDuplexMode) this.settings.allowToggleMode = false;
   }
 
   /* ---------- Canaux ---------- */

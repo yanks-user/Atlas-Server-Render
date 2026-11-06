@@ -112,7 +112,7 @@ const RESERVED_ROLE_NAMES = new Set(['gérant', 'adjoint', 'joueur', 'auditeur']
 const DEFAULT_SESSION_SETTINGS = Object.freeze({
   freeMovement: true,      // les joueurs changent de canal eux-mêmes (sinon le gérant ou un adjoint les place)
   allowExt: true,          // les joueurs peuvent parler en RAD Ext (sinon Int seulement)
-  allowToggleMode: false,  // chacun peut choisir « appuyer pour démarrer / arrêter » (sinon, tous maintiennent la touche)
+  allowToggleMode: false,  // chacun peut choisir « appuyer pour démarrer / arrêter » (sinon, tous maintiennent la touche) : seulement en Full-Duplex
   allowJoinWithoutManager: true, // on peut entrer dans la session, ou la rouvrir, même si le gérant n'est pas là
   managerHearsAll: false,  // le gérant entend toutes les communications (sinon, « qui parle à qui » vaut aussi pour lui)
   // Half-Duplex par défaut : un seul émetteur à la fois vers un canal, les autres sont refusés. Le Full-Duplex (plusieurs voix en même
