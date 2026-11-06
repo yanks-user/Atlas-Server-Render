@@ -21,8 +21,11 @@ const MESSAGE_TYPES = Object.freeze({
   DELETE_CHANNEL: 'delete-channel', // { channelId }  ses membres se retrouvent hors canal
   MOVE_MEMBER: 'move-member',       // { memberId, channelId | null }
   // Une case de la matrice par requête : chaque clic s'applique à l'état réel, sans en écraser un autre
-  SET_HEARING: 'set-hearing',       // { channelId, sourceId, enabled }  le canal entend (ou non) sourceId
+  // « Qui parle à qui » : une case = « le canal sourceId parle (RAD Ext) au canal channelId » (côté serveur : channelId l'entend)
+  SET_HEARING: 'set-hearing',       // { channelId, sourceId, enabled }  sourceId parle (ou non) à channelId
   SET_BROADCAST: 'set-broadcast',   // { channelId, enabled }            le canal peut diffuser à tous
+  // RAD prioritaire (réglage allowPriorityRad) : le canal coupe la parole de qui occupe déjà un canal qu'il vise, même en Half-Duplex
+  SET_PRIORITY: 'set-priority',     // { channelId, enabled }
   KICK_MEMBER: 'kick-member',       // { memberId }
   SET_LOCKED: 'set-locked',         // { locked }    plus personne ne peut rejoindre
   // Gérant seul (les commandes ci-dessus dépendent des options du rôle : voir COMMAND_PERMISSIONS)
@@ -32,7 +35,7 @@ const MESSAGE_TYPES = Object.freeze({
   DELETE_ROLE: 'delete-role',       // { id }  ceux qui l'ont redeviennent joueurs
   REGENERATE_CODE: 'regenerate-code', // {}  nouveau code ; l'ancien ne permet plus de rejoindre
   // Champs absents inchangés ; réglages : voir DEFAULT_SESSION_SETTINGS
-  SET_SESSION_SETTINGS: 'set-session-settings', // { name?, freeMovement?, allowExt?, allowToggleMode?, allowJoinWithoutManager?, managerHearsAll?, enableRadioSounds?, halfDuplexMode?, hideOtherChannels? }
+  SET_SESSION_SETTINGS: 'set-session-settings', // { name?, freeMovement?, allowExt?, allowToggleMode?, allowJoinWithoutManager?, managerHearsAll?, enableRadioSounds?, halfDuplexMode?, allowPriorityRad?, hideOtherChannels? }
   // Client -> serveur -> pair autorisé par la matrice de routage
   OFFER: 'offer',                   // { to, payload }  relayé en { from, payload }
   ANSWER: 'answer',
@@ -54,16 +57,17 @@ const MESSAGE_TYPES = Object.freeze({
   TX_GRANTED: 'tx_granted',         // { requestId, targets }  le micro peut s'ouvrir
   TX_DENIED: 'tx_denied',           // { requestId, targets, by }  by : le membre qui occupe la cible (null : cible non autorisée)
   // Émission annulée par le serveur : déplacé dans un autre canal, cible retirée, devenu auditeur…
-  TX_REVOKED: 'tx_revoked',         // { requestId }
+  // reason: 'priority' quand un RAD prioritaire a coupé la parole (by : le membre qui l'a prise)
+  TX_REVOKED: 'tx_revoked',         // { requestId, reason?, by? }
   SPEAKING: 'speaking',             // { from, target, active }  indicateur « en train de parler », envoyé à l'audience
   PONG: 'pong',
   ERROR: 'error',                   // { code, message, request }
 });
 
-// Cibles du Push To Talk
+// Cibles du RAD
 const TARGETS = Object.freeze({
   INT: 'int',       // son canal uniquement
-  EXT: 'ext',       // uniquement les canaux qui écoutent le sien (règles d'écoute), s'il y en a
+  EXT: 'ext',       // uniquement les canaux à qui le sien parle (« qui parle à qui »), s'il y en a
   GLOBAL: 'global', // toute la session (gérant, ou canal autorisé à diffuser)
 });
 
@@ -75,7 +79,7 @@ const channelTarget = (channelId) => `${CHANNEL_TARGET_PREFIX}${channelId}`;
 // S'y ajoutent les rôles personnalisés de la session, créés par son gérant
 const ROLES = Object.freeze({
   MEMBER: 'member',     // joueur : Int, et selon les droits de la session, Ext et changement de canal
-  DEPUTY: 'deputy',     // adjoint : canaux, règles, placement des joueurs, PTT Général, parler à un canal
+  DEPUTY: 'deputy',     // adjoint : canaux, règles, placement des joueurs, RAD Général, parler à un canal
   LISTENER: 'listener', // auditeur : écoute seulement, ne peut pas parler
 });
 
@@ -85,11 +89,11 @@ const PERMISSIONS = Object.freeze({
   TALK_EXT: 'talkExt',                // parler aux canaux qui écoutent le sien
   TALK_GLOBAL: 'talkGlobal',          // parler à toute la session
   TALK_ANY_CHANNEL: 'talkAnyChannel', // parler à n'importe quel canal seul
-  HEAR_ALL: 'hearAll',                // entendre toutes les communications, sans tenir compte des règles d'écoute
+  HEAR_ALL: 'hearAll',                // entendre toutes les communications, sans tenir compte de « qui parle à qui »
   MOVE_SELF: 'moveSelf',              // changer de canal soi-même
   MOVE_MEMBERS: 'moveMembers',        // déplacer les autres
   MANAGE_CHANNELS: 'manageChannels',  // créer, renommer et supprimer des canaux
-  MANAGE_ROUTING: 'manageRouting',    // régler les règles d'écoute
+  MANAGE_ROUTING: 'manageRouting',    // régler « qui parle à qui » et le RAD prioritaire
   KICK_MEMBERS: 'kickMembers',        // exclure de la session
   LOCK_SESSION: 'lockSession',        // verrouiller la session
 });
@@ -107,12 +111,14 @@ const RESERVED_ROLE_NAMES = new Set(['gérant', 'adjoint', 'joueur', 'auditeur']
 // Réglages de la session, par le gérant (paramètres de la session)
 const DEFAULT_SESSION_SETTINGS = Object.freeze({
   freeMovement: true,      // les joueurs changent de canal eux-mêmes (sinon le gérant ou un adjoint les place)
-  allowExt: true,          // les joueurs peuvent parler en PTT Ext (sinon Int seulement)
+  allowExt: true,          // les joueurs peuvent parler en RAD Ext (sinon Int seulement)
   allowToggleMode: false,  // chacun peut choisir « appuyer pour démarrer / arrêter » (sinon, tous maintiennent la touche)
   allowJoinWithoutManager: true, // on peut entrer dans la session, ou la rouvrir, même si le gérant n'est pas là
-  managerHearsAll: false,  // le gérant entend toutes les communications (sinon, les règles d'écoute valent aussi pour lui)
+  managerHearsAll: false,  // le gérant entend toutes les communications (sinon, « qui parle à qui » vaut aussi pour lui)
   enableRadioSounds: true, // bips de prise et de fin de parole, joués par chaque client
   halfDuplexMode: false,   // un seul émetteur à la fois vers un canal : les autres sont refusés
+  // Les canaux marqués prioritaires (channel.priority) coupent la parole de qui occupe un canal qu'ils visent, même en Half-Duplex
+  allowPriorityRad: false,
   // Canaux masqués : chaque joueur ne voit que son canal et ceux qui y sont, et ne parle qu'à lui (secret des équipes).
   // Le gérant et les rôles qui encadrent les autres gardent la vue d'ensemble (voir Session.seesAllChannels)
   hideOtherChannels: false,
@@ -159,6 +165,7 @@ const COMMAND_PERMISSIONS = new Map([
   [MESSAGE_TYPES.MOVE_MEMBER, PERMISSIONS.MOVE_MEMBERS],
   [MESSAGE_TYPES.SET_HEARING, PERMISSIONS.MANAGE_ROUTING],
   [MESSAGE_TYPES.SET_BROADCAST, PERMISSIONS.MANAGE_ROUTING],
+  [MESSAGE_TYPES.SET_PRIORITY, PERMISSIONS.MANAGE_ROUTING],
   [MESSAGE_TYPES.KICK_MEMBER, PERMISSIONS.KICK_MEMBERS],
   [MESSAGE_TYPES.SET_LOCKED, PERMISSIONS.LOCK_SESSION],
 ]);
@@ -247,7 +254,8 @@ function parseTemplate(template) {
     if (!Array.isArray(channel.hears) || channel.hears.length > MAX_HEARS || !channel.hears.every(isId)) {
       return `Modèle : règles du canal « ${name} » invalides.`;
     }
-    channels.push({ id: channel.id, name, hears: [...new Set(channel.hears)], broadcast: channel.broadcast === true });
+    // priority : absent d'un modèle ou d'une session gardée avant le RAD prioritaire
+    channels.push({ id: channel.id, name, hears: [...new Set(channel.hears)], broadcast: channel.broadcast === true, priority: channel.priority === true });
   }
   // Nom absent ou invalide : la session n'en a simplement pas
   const name = cleanText(template.name, SESSION_NAME_LENGTH);
@@ -328,6 +336,10 @@ const PARSERS = {
     : 'Règle d\'écoute invalide.'),
 
   [MESSAGE_TYPES.SET_BROADCAST]: ({ channelId, enabled }) => (isId(channelId)
+    ? { channelId, enabled: enabled === true }
+    : 'Canal invalide.'),
+
+  [MESSAGE_TYPES.SET_PRIORITY]: ({ channelId, enabled }) => (isId(channelId)
     ? { channelId, enabled: enabled === true }
     : 'Canal invalide.'),
 

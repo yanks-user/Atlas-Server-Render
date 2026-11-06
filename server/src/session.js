@@ -15,7 +15,7 @@ const CODE_LENGTH = 4;
 const CHANNEL_ID_BYTES = 6;
 const ROLE_ID_BYTES = 6;
 const BASE_ROLES = new Set(Object.values(ROLES));
-// Plusieurs PTT peuvent être maintenus ensemble ; au-delà, ce n'est plus un joueur qui appuie
+// Plusieurs RAD peuvent être maintenus ensemble ; au-delà, ce n'est plus un joueur qui appuie
 const MAX_TRANSMISSIONS_PER_MEMBER = 16;
 // Ceux qui encadrent les autres (placer, régler, exclure, tout entendre) gardent la vue d'ensemble quand les canaux sont masqués :
 // sans elle, ils ne pourraient pas faire ce que leur rôle leur permet
@@ -42,23 +42,24 @@ function generateCode() {
  * Une session commence sans canal. Un membre qui arrive n'est dans aucun canal vocal
  * (channelId null) : il n'entend personne et personne ne l'entend tant qu'il n'en a pas rejoint un.
  *
- * Matrice : chaque canal a une liste de canaux qu'il entend (`hears`) et peut être autorisé
- * à diffuser à toute la session (`broadcast`). Les cibles de Push To Talk en découlent :
+ * Matrice « qui parle à qui » : chaque canal a une liste de canaux qu'il entend (`hears`, c'est-à-dire ceux
+ * qui lui parlent en RAD Ext) et peut être autorisé à diffuser à toute la session (`broadcast`).
+ * Les cibles de RAD en découlent :
  * - 'int'    : entendu par son canal uniquement ;
  * - 'ext'    : entendu uniquement par les canaux qui entendent ce canal (pas le sien), s'il y en a ;
  * - 'global' : entendu par tous les membres présents dans un canal (gérant, adjoint, ou canal qui diffuse) ;
  * - 'channel:<id>' : entendu par les membres de ce seul canal. Tous les canaux pour le gérant et les
- *   adjoints ; pour les joueurs, le leur et ceux que leur PTT Ext atteint (règles d'écoute).
+ *   adjoints ; pour les joueurs, le leur et ceux que leur RAD Ext atteint (« qui parle à qui »).
  *
  * Rôles (voir ROLES) : le gérant a tous les droits. Les adjoints gèrent canaux, règles et placement
  * des joueurs ; les auditeurs écoutent sans pouvoir parler. Les droits des joueurs (changer de canal
- * eux-mêmes, PTT Ext) sont des paramètres de la session, réglés par le gérant.
+ * eux-mêmes, RAD Ext) sont des paramètres de la session, réglés par le gérant.
  *
  * Rôles personnalisés : créés par le gérant, ils permettent option par option (voir PERMISSIONS) ce qui y est
  * coché, et rien d'autre. Les droits des joueurs et la diffusion d'un canal ne les concernent pas. Ils
  * ne donnent jamais accès à ce qui permettrait de s'en donner davantage (rôles, paramètres de la session).
  *
- * Ce qu'on entend ne dépend pas du rôle : les règles d'écoute valent aussi pour le gérant. Seuls le réglage
+ * Ce qu'on entend ne dépend pas du rôle : « qui parle à qui » vaut aussi pour le gérant. Seuls le réglage
  * managerHearsAll, désactivé par défaut, et l'option « tout entendre » d'un rôle personnalisé y dérogent ;
  * hors canal vocal, on n'entend toujours personne.
  *
@@ -72,11 +73,15 @@ function generateCode() {
  *
  * Un canal se reconnaît à son identifiant, pas à son nom : unique d'une session à l'autre, il ne change
  * ni quand on renomme le canal, ni quand sa session est relancée depuis un modèle. Ce que chacun y a
- * rattaché de son côté (touches, volumes, PTT personnalisés) le suit donc partout.
+ * rattaché de son côté (touches, volumes, RAD personnalisés) le suit donc partout.
  *
  * Prise de parole : le client n'ouvre son micro qu'une fois la parole accordée. Une émission occupe le canal
  * d'où elle part et ceux que ses cibles atteignent ; en Half-Duplex, on ne peut pas parler à un canal occupé,
  * gérant compris. Le premier arrivé garde la parole jusqu'à sa fin.
+ *
+ * RAD prioritaire (réglage allowPriorityRad, canaux marqués `priority`) : un membre d'un canal prioritaire ne se
+ * voit pas refuser un canal occupé. Il coupe l'émission de ceux qui l'occupent, à moins qu'ils soient eux-mêmes
+ * dans un canal prioritaire (à égalité, le premier arrivé garde la parole), puis la parole lui est accordée.
  *
  * Canaux masqués (réglage hideOtherChannels) : un joueur ne connaît que son canal. Le serveur ne lui envoie ni les
  * autres canaux ni leurs occupants (snapshot), il ne peut parler qu'à son canal (targetChannels) et c'est le gérant
@@ -99,7 +104,7 @@ class Session {
     this.settings = { ...DEFAULT_SESSION_SETTINGS };
     /** @type {Map<string, { id: string, name: string, permissions: string[] }>} */
     this.customRoles = new Map();
-    /** @type {Map<string, { id: string, name: string, hears: Set<string>, broadcast: boolean }>} */
+    /** @type {Map<string, { id: string, name: string, hears: Set<string>, broadcast: boolean, priority: boolean }>} */
     this.channels = new Map();
     /** Ordre d'insertion = ordre d'arrivée. */
     this.members = new Map();
@@ -284,7 +289,7 @@ class Session {
     for (const channel of this.channels.values()) channel.hears.delete(channelId);
   }
 
-  /** Le canal entend (ou n'entend plus) le canal `sourceId` quand on y parle en PTT Ext. */
+  /** Le canal `sourceId` parle (ou ne parle plus) au canal `channelId` : celui-ci l'entend quand on y parle en RAD Ext. */
   setHearing(channelId, sourceId, enabled) {
     const channel = this.#channel(channelId);
     this.#channel(sourceId);
@@ -293,23 +298,29 @@ class Session {
     else channel.hears.delete(sourceId);
   }
 
-  /** Autorise (ou non) les membres du canal à utiliser le PTT Général. */
+  /** Autorise (ou non) les membres du canal à utiliser le RAD Général. */
   setBroadcast(channelId, enabled) {
     this.#channel(channelId).broadcast = enabled;
   }
 
-  /** Règles complètes d'un canal (chargement d'un modèle). */
-  setRouting(channelId, { hears, broadcast }) {
+  /** Les membres du canal sont prioritaires (ou non) : leur RAD coupe la parole de ceux qui occupent un canal visé. */
+  setPriority(channelId, enabled) {
+    this.#channel(channelId).priority = enabled;
+  }
+
+  /** Règles complètes d'un canal (chargement d'un modèle ; `priority` absent d'un ancien modèle : non prioritaire). */
+  setRouting(channelId, { hears, broadcast, priority = false }) {
     const channel = this.#channel(channelId);
     for (const id of hears) this.#channel(id);
     channel.hears = new Set(hears.filter((id) => id !== channelId));
     channel.broadcast = broadcast;
+    channel.priority = priority === true;
   }
 
   /**
    * Recrée le nom, les droits, les rôles personnalisés, les canaux et les règles d'un modèle sauvegardé.
    * Les canaux gardent les identifiants du fichier : ce sont les mêmes canaux qu'au lancement précédent.
-   * @param {{ name?: string | null, settings?: object, customRoles?: { id: string, name: string, permissions: string[] }[], channels: { id: string, name: string, hears: string[], broadcast: boolean }[] }} template
+   * @param {{ name?: string | null, settings?: object, customRoles?: { id: string, name: string, permissions: string[] }[], channels: { id: string, name: string, hears: string[], broadcast: boolean, priority?: boolean }[] }} template
    */
   applyTemplate({ channels, name = null, settings = {}, customRoles }) {
     this.updateSettings({ name, settings });
@@ -321,10 +332,10 @@ class Session {
       if (this.channels.has(id)) throw new SessionError(ERROR_CODES.INVALID, `Modèle invalide : canal « ${id} » en double.`);
       this.createChannel(name, id);
     }
-    for (const { id, hears, broadcast } of channels) {
+    for (const { id, hears, broadcast, priority } of channels) {
       const unknown = hears.find((source) => !this.channels.has(source));
       if (unknown) throw new SessionError(ERROR_CODES.INVALID, `Modèle invalide : règle vers un canal inconnu (${unknown}).`);
-      this.setRouting(id, { hears, broadcast });
+      this.setRouting(id, { hears, broadcast, priority });
     }
   }
 
@@ -346,7 +357,7 @@ class Session {
       locked: this.locked,
       settings: { ...this.settings },
       customRoles: [...this.customRoles.values()],
-      channels: [...this.channels.values()].map(({ id, name, hears, broadcast }) => ({ id, name, hears: [...hears], broadcast })),
+      channels: [...this.channels.values()].map(({ id, name, hears, broadcast, priority }) => ({ id, name, hears: [...hears], broadcast, priority })),
       managerHash: this.#managerHash ?? null,
       managerNickname: this.#managerNickname,
       roles: Object.fromEntries(this.#roles),
@@ -373,7 +384,7 @@ class Session {
   }
 
   /**
-   * Cibles de Push To Talk autorisées à un membre, et les canaux que chacune atteint
+   * Cibles de RAD autorisées à un membre, et les canaux que chacune atteint
    * (hors canal vocal : aucune ; sans option pour parler : aucune, mais il entend tout de même son canal).
    * @returns {Map<string, Set<string>>}
    */
@@ -401,7 +412,7 @@ class Session {
     if (intAllowed) targets.set(TARGETS.INT, new Set([speaker.channelId]));
     if (linked.size > 0 && extAllowed) targets.set(TARGETS.EXT, linked);
     if (this.canBroadcast(memberId)) targets.set(TARGETS.GLOBAL, new Set(this.channels.keys()));
-    // Un seul canal : tous avec l'option ; sinon son canal et ceux que le PTT Ext atteint
+    // Un seul canal : tous avec l'option ; sinon son canal et ceux que le RAD Ext atteint
     const reachable = this.can(memberId, PERMISSIONS.TALK_ANY_CHANNEL)
       ? [...this.channels.keys()]
       : [...(intAllowed ? [speaker.channelId] : []), ...(extAllowed ? linked : [])];
@@ -411,33 +422,55 @@ class Session {
 
   /**
    * Demande de parole vers ces cibles : accordée ou refusée d'un bloc. En Half-Duplex, refusée si un
-   * autre membre émet déjà vers l'un des canaux qu'elles atteignent.
-   * @returns {{ granted: boolean, occupant: string | null }} occupant : le membre qui occupe le canal
+   * autre membre émet déjà vers l'un des canaux qu'elles atteignent, sauf pour un RAD prioritaire (voir
+   * #canCut) : les émissions qui occupaient ces canaux sont alors coupées, et la parole lui est accordée.
+   * @returns {{ granted: boolean, occupant: string | null, preempted: { memberId: string, requestId: number }[] }}
+   *   occupant : le membre qui occupe le canal ; preempted : les émissions coupées pour donner la parole
    */
   requestTransmission(memberId, requestId, targets) {
     const reachable = this.targetChannels(memberId);
     const allowed = targets.every((target) => reachable.has(target));
-    if (!allowed || this.transmissions.countOf(memberId) >= MAX_TRANSMISSIONS_PER_MEMBER) return { granted: false, occupant: null };
+    if (!allowed || this.transmissions.countOf(memberId) >= MAX_TRANSMISSIONS_PER_MEMBER) return { granted: false, occupant: null, preempted: [] };
 
+    let preempted = [];
     if (this.settings.halfDuplexMode) {
       const wanted = new Set(targets.flatMap((target) => [...reachable.get(target)]));
-      const occupant = this.#occupantOf(wanted, memberId);
-      if (occupant) return { granted: false, occupant };
+      const blockers = this.#blockersOf(wanted, memberId);
+      // Tout ou rien : si l'un d'eux ne peut pas être coupé, personne ne l'est et la parole est refusée
+      const uncuttable = blockers.find((blocker) => !this.#canCut(memberId, blocker.memberId));
+      if (uncuttable) return { granted: false, occupant: uncuttable.memberId, preempted: [] };
+      preempted = blockers;
+      for (const blocker of preempted) this.transmissions.release(blocker.memberId, blocker.requestId);
     }
     this.transmissions.hold(memberId, requestId, { targets, channelId: this.members.get(memberId).channelId });
-    return { granted: true, occupant: null };
+    return { granted: true, occupant: null, preempted };
   }
 
-  /** Un autre membre dont l'émission occupe l'un de ces canaux, ou null. */
-  #occupantOf(channelIds, exceptId) {
-    for (const memberId of this.transmissions.transmitters()) {
+  /** Le RAD prioritaire est autorisé par la session et ce membre parle depuis un canal prioritaire. */
+  hasPriority(memberId) {
+    return this.settings.allowPriorityRad === true
+      && this.channels.get(this.members.get(memberId)?.channelId)?.priority === true;
+  }
+
+  /** Une émission de `speakerId` peut couper celle de `otherId` : elle est prioritaire, pas la sienne (à égalité, le premier arrivé garde la parole). */
+  #canCut(speakerId, otherId) {
+    return this.hasPriority(speakerId) && !this.hasPriority(otherId);
+  }
+
+  /**
+   * Les émissions d'autres membres qui occupent l'un de ces canaux, une entrée par demande : le canal d'où
+   * elle part aussi (personne ne lui parle, pas même le canal à qui il émet pour lui répondre) et ceux que ses cibles atteignent.
+   * @returns {{ memberId: string, requestId: number }[]}
+   */
+  #blockersOf(channelIds, exceptId) {
+    const blockers = [];
+    for (const { memberId, requestId, transmission } of this.transmissions.entries()) {
       if (memberId === exceptId) continue;
       const reachable = this.targetChannels(memberId);
-      // Le canal d'où elle part aussi : personne ne lui parle, pas même le canal à qui il émet pour lui répondre
-      const occupied = [this.members.get(memberId)?.channelId, ...this.transmissions.targetsOf(memberId).flatMap((target) => [...(reachable.get(target) ?? [])])];
-      if (occupied.some((channelId) => channelIds.has(channelId))) return memberId;
+      const occupied = [this.members.get(memberId)?.channelId, ...transmission.targets.flatMap((target) => [...(reachable.get(target) ?? [])])];
+      if (occupied.some((channelId) => channelIds.has(channelId))) blockers.push({ memberId, requestId });
     }
-    return null;
+    return blockers;
   }
 
   /**
@@ -462,7 +495,7 @@ class Session {
 
   /**
    * Qui peut entendre qui, pour chaque membre (hors canal vocal : ni cible, ni audience) :
-   * - targets  : cibles de Push To Talk autorisées ;
+   * - targets  : cibles de RAD autorisées ;
    * - audience : pour chaque cible, les membres qui l'entendent ;
    * - peers    : membres avec qui une connexion WebRTC est nécessaire (send : il peut nous
    *              entendre ; receive : nous pouvons l'entendre).
@@ -518,7 +551,7 @@ class Session {
     return {
       ...state,
       restricted: true,
-      channels: state.channels.filter((channel) => channel.id === own).map(({ id, name }) => ({ id, name, hears: [], broadcast: false })),
+      channels: state.channels.filter((channel) => channel.id === own).map(({ id, name }) => ({ id, name, hears: [], broadcast: false, priority: false })),
       members: state.members
         .filter((member) => member.id === viewerId || (own !== null && member.channelId === own) || this.seesAllChannels(member.id))
         .map((member) => (member.channelId === own ? member : { ...member, channelId: null })),
@@ -535,8 +568,8 @@ class Session {
       managerId: this.managerId,
       // Pseudo du gérant quand il est parti (il reprendra sa place à son retour), sinon null
       absentManager: this.managerId === null ? this.#managerNickname : null,
-      channels: [...this.channels.values()].map(({ id, name, hears, broadcast }) => ({
-        id, name, hears: [...hears], broadcast,
+      channels: [...this.channels.values()].map(({ id, name, hears, broadcast, priority }) => ({
+        id, name, hears: [...hears], broadcast, priority,
       })),
       members: [...this.members.values()].map(({ id, nickname, channelId, connected, role }) => ({
         id, nickname, channelId, connected, role,
@@ -573,7 +606,7 @@ class Session {
 }
 
 function newChannel(id, name) {
-  return { id, name, hears: new Set(), broadcast: false };
+  return { id, name, hears: new Set(), broadcast: false, priority: false };
 }
 
 /** Ensemble des sessions du serveur, indexées par leur code. */

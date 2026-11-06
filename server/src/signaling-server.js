@@ -196,14 +196,26 @@ function createSignalingServer({
 
   /* ---------- Prise de parole ---------- */
 
-  /** Le serveur arbitre ; le client n'ouvre son micro qu'à la réponse tx_granted. */
+  /**
+   * Le serveur arbitre ; le client n'ouvre son micro qu'à la réponse tx_granted.
+   * RAD prioritaire : l'émission qui occupait le canal visé est coupée (tx_revoked, reason 'priority') avant
+   * que la parole soit accordée, sans attendre que la personne lâche sa touche.
+   */
   function handleTxRequest(client, { requestId, targets }) {
-    const { granted, occupant } = client.session
+    const { granted, occupant, preempted } = client.session
       ? client.session.requestTransmission(client.id, requestId, targets)
-      : { granted: false, occupant: null };
+      : { granted: false, occupant: null, preempted: [] };
     if (!granted) {
       send(client, { type: MESSAGE_TYPES.TX_DENIED, requestId, targets, by: occupant });
       return;
+    }
+    for (const cut of preempted) {
+      const cutClient = clientsById.get(cut.memberId);
+      if (!cutClient) continue;
+      send(cutClient, { type: MESSAGE_TYPES.TX_REVOKED, requestId: cut.requestId, reason: 'priority', by: client.id });
+      // Son indicateur « en train de parler » s'éteint chez ceux qui l'entendaient
+      refreshSpeaking(cutClient);
+      logger.info(`[>] ${label(client)} prend la parole en RAD prioritaire et coupe ${label(cutClient)} (${client.session.code})`);
     }
     send(client, { type: MESSAGE_TYPES.TX_GRANTED, requestId, targets });
     refreshSpeaking(client);
@@ -356,6 +368,7 @@ function createSignalingServer({
       case MESSAGE_TYPES.MOVE_MEMBER: session.moveMember(message.memberId, message.channelId); break;
       case MESSAGE_TYPES.SET_HEARING: session.setHearing(message.channelId, message.sourceId, message.enabled); break;
       case MESSAGE_TYPES.SET_BROADCAST: session.setBroadcast(message.channelId, message.enabled); break;
+      case MESSAGE_TYPES.SET_PRIORITY: session.setPriority(message.channelId, message.enabled); break;
       case MESSAGE_TYPES.SET_MANAGER:
         session.setManager(message.memberId);
         // Le code suit la session : il appartient désormais au nouveau gérant

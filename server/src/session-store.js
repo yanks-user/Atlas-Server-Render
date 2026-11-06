@@ -6,7 +6,7 @@ const COLLECTION = 'sessions';
 const FILE_VERSION = 1;
 // Au-delà, les sessions modifiées il y a le plus longtemps sont oubliées
 const MAX_ENTRIES = 2000;
-// Les changements arrivent par rafales (plusieurs règles d'écoute à la suite) : une seule écriture
+// Les changements arrivent par rafales (plusieurs règles « qui parle à qui » à la suite) : une seule écriture
 const SAVE_DELAY_MS = 500;
 const TOKEN_HASH_PATTERN = /^[0-9a-f]{64}$/;
 const ROLE_VALUES = new Set(Object.values(ROLES));
