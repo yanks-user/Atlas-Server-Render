@@ -264,11 +264,14 @@ function createSignalingServer({
     const { session } = client;
     if (!session) return;
     stopSpeaking(client);
-    session.removeMember(client.id);
+    // Exclu : il ne revient pas d'office dans son canal
+    session.removeMember(client.id, { rememberChannel: reason !== 'kicked' });
     Object.assign(client, { session: null, routing: null, lastState: null, lastRouting: null });
     if (reason) send(client, { type: MESSAGE_TYPES.SESSION_ENDED, reason, code: session.code }, { buffered: true });
 
     if (session.isEmpty) {
+      // Le canal du dernier parti est gardé avec la session : il le retrouvera à son retour
+      sessions.save(session.code, session.persistentState());
       registry.delete(session.code);
       logger.info(`[-] session ${session.code} fermée (plus aucun membre)`);
     } else {

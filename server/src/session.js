@@ -95,6 +95,8 @@ class Session {
   #managerNickname = null;
   /** Rôles autres que joueur, retenus même absent : empreinte du jeton d'identité -> rôle */
   #roles = new Map();
+  /** Canal où chacun se trouvait en quittant la session, pour l'y remettre à son retour : empreinte du jeton d'identité -> canal */
+  #lastChannels = new Map();
 
   constructor(code, limits = {}) {
     this.code = code;
@@ -171,8 +173,11 @@ class Session {
       throw new SessionError(ERROR_CODES.NICKNAME_TAKEN, `Le pseudo « ${nickname} » est déjà utilisé dans cette session.`);
     }
     const identityHash = identityToken ? hashToken(identityToken) : null;
-    // Aucun canal à l'arrivée : le membre choisit le sien (ou le gérant l'y place). Son rôle l'attend s'il en avait un
-    this.members.set(id, { id, nickname, channelId: null, connected: true, role: this.#roles.get(identityHash) ?? ROLES.MEMBER, identityToken, identityHash });
+    // Parti depuis un canal qui existe toujours : il y revient directement. Sinon, aucun canal à l'arrivée : le membre choisit le sien
+    // (ou le gérant l'y place). Son rôle l'attend s'il en avait un
+    const lastChannel = identityHash ? this.#lastChannels.get(identityHash) : undefined;
+    const channelId = lastChannel && this.channels.has(lastChannel) ? lastChannel : null;
+    this.members.set(id, { id, nickname, channelId, connected: true, role: this.#roles.get(identityHash) ?? ROLES.MEMBER, identityToken, identityHash });
     if (this.#managerHash === undefined || returningManager) this.setManager(id);
   }
 
@@ -180,8 +185,14 @@ class Session {
    * Retire un membre. Le gérant qui part n'est pas remplacé : il reste le gérant de la session.
    * (Sauf si son jeton est déjà de retour sous une autre connexion, l'ancienne n'ayant pas encore expiré.)
    */
-  removeMember(id) {
+  removeMember(id, { rememberChannel = true } = {}) {
     this.transmissions.releaseAll(id);
+    // Son canal l'attendra à son retour ; parti hors canal (ou exclu), il reviendra hors canal
+    const leaving = this.members.get(id);
+    if (leaving?.identityHash) {
+      if (rememberChannel && leaving.channelId) this.#lastChannels.set(leaving.identityHash, leaving.channelId);
+      else this.#lastChannels.delete(leaving.identityHash);
+    }
     if (!this.members.delete(id) || this.managerId !== id) return;
     const sameIdentity = this.#managerHash === null
       ? undefined
@@ -366,16 +377,19 @@ class Session {
       managerHash: this.#managerHash ?? null,
       managerNickname: this.#managerNickname,
       roles: Object.fromEntries(this.#roles),
+      // Seulement vers des canaux qui existent encore
+      lastChannels: Object.fromEntries([...this.#lastChannels].filter(([, channelId]) => this.channels.has(channelId))),
     };
   }
 
   /** La session reprend là où elle en était, sans membres : le gérant reste absent jusqu'à son retour. */
-  restoreState({ name, locked, settings, customRoles, channels, managerHash, managerNickname, roles }) {
+  restoreState({ name, locked, settings, customRoles, channels, managerHash, managerNickname, roles, lastChannels = {} }) {
     this.applyTemplate({ name, settings, customRoles, channels });
     this.locked = locked;
     this.#managerHash = managerHash;
     this.#managerNickname = managerNickname;
     this.#roles = new Map(Object.entries(roles));
+    this.#lastChannels = new Map(Object.entries(lastChannels));
   }
 
   /* ---------- Routage audio ---------- */

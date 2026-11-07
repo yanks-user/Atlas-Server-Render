@@ -118,6 +118,11 @@ function isValidState(state) {
   if (state.managerHash !== null && !TOKEN_HASH_PATTERN.test(state.managerHash)) return false;
   if (!state.roles || typeof state.roles !== 'object') return false;
   const customRoles = new Set((state.customRoles ?? []).map(({ id }) => id));
+  // Dernier canal de chacun (absent des fichiers d'avant la 1.9.2)
+  if (state.lastChannels !== undefined) {
+    if (!state.lastChannels || typeof state.lastChannels !== 'object' || Array.isArray(state.lastChannels)) return false;
+    if (!Object.entries(state.lastChannels).every(([hash, channelId]) => TOKEN_HASH_PATTERN.test(hash) && typeof channelId === 'string')) return false;
+  }
   return Object.entries(state.roles).every(([hash, role]) => TOKEN_HASH_PATTERN.test(hash) && (ROLE_VALUES.has(role) || customRoles.has(role)));
 }
 
