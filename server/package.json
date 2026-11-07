@@ -1,6 +1,6 @@
 {
   "name": "tacnet-server",
-  "version": "1.9.2",
+  "version": "1.9.3",
   "description": "Serveur de sessions et de signalisation WebRTC (communication vocale)",
   "main": "src/index.js",
   "scripts": {
