@@ -66,7 +66,7 @@ class UpstashStorage {
    *   fetchImpl?: typeof fetch, pushDelayMs?: number, retryDelaysMs?: number[], startupRetryDelaysMs?: number[], fileCheckIntervalMs?: number }} options
    *   files : nom du document -> chemin du fichier (clé chez Upstash : préfixe + nom)
    */
-  constructor({ url, token, prefix = 'tacnet:', files, logger, fetchImpl = fetch, pushDelayMs = DEFAULT_PUSH_DELAY_MS, retryDelaysMs = DEFAULT_RETRY_DELAYS_MS, startupRetryDelaysMs = STARTUP_RETRY_DELAYS_MS, fileCheckIntervalMs = FILE_CHECK_INTERVAL_MS }) {
+  constructor({ url, token, prefix = 'atlas:', files, logger, fetchImpl = fetch, pushDelayMs = DEFAULT_PUSH_DELAY_MS, retryDelaysMs = DEFAULT_RETRY_DELAYS_MS, startupRetryDelaysMs = STARTUP_RETRY_DELAYS_MS, fileCheckIntervalMs = FILE_CHECK_INTERVAL_MS }) {
     this.#url = url;
     this.#token = token;
     this.#prefix = prefix;

@@ -235,7 +235,7 @@ function createSignalingServer({
    */
   function checkNickname(client, request, nickname) {
     if (!client.identityToken) {
-      throw new SessionError(ERROR_CODES.IDENTITY_REQUIRED, 'Mettez à jour TACNET : ce serveur protège les pseudos et demande une version plus récente de l\'application.');
+      throw new SessionError(ERROR_CODES.IDENTITY_REQUIRED, 'Mettez à jour Atlas : ce serveur protège les pseudos et demande une version plus récente de l\'application.');
     }
     if (nicknames.isReservedByOther(nickname, client.identityToken)) {
       logger.warn(`[!] pseudo « ${nickname} » refusé pour ${label(client)} : réservé par un autre joueur`);

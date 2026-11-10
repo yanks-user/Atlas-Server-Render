@@ -56,7 +56,7 @@ async function main() {
     process.exit(1);
   }
 
-  logger.info(`Serveur TACNET version ${VERSION}`);
+  logger.info(`Serveur Atlas version ${VERSION}`);
   for (const notice of config.notices) logger.info(notice);
   logger.info(`Pseudos réservés : ${nicknames.size} (${config.usersPath})`);
   logger.info(`Codes de session réservés : ${codes.size} (${config.sessionCodesPath})`);
@@ -66,7 +66,7 @@ async function main() {
     logger.info(`Stockage durable Upstash : actif (${storage.host}, clés « ${storage.prefix}… »). Pseudos, codes et sessions gardées survivent aux redémarrages.`);
   } else if (config.onRender) {
     // Render détecté, sans Upstash : ce que les hébergeurs doivent savoir (le plan gratuit efface le disque)
-    logger.info('Plan gratuit de Render : le disque est effacé à chaque redémarrage, redéploiement ou mise en veille, donc les pseudos réservés et les sessions gardées sont perdus (limite de Render, pas de TACNET). Option gratuite : Upstash (UPSTASH_REDIS_REST_URL et UPSTASH_REDIS_REST_TOKEN, voir le guide).');
+    logger.info('Plan gratuit de Render : le disque est effacé à chaque redémarrage, redéploiement ou mise en veille, donc les pseudos réservés et les sessions gardées sont perdus (limite de Render, pas d\'Atlas). Option gratuite : Upstash (UPSTASH_REDIS_REST_URL et UPSTASH_REDIS_REST_TOKEN, voir le guide).');
   }
 
   const httpServer = config.tls

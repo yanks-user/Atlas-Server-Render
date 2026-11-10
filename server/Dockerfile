@@ -1,4 +1,4 @@
-# Serveur de sessions TACNET. Démarrage : voir README.html
+# Serveur de sessions Atlas. Démarrage : voir README.html
 # Toute la configuration passe par des variables d'environnement (SERVER_PASSWORD, PORT, TLS, TRUST_PROXY…) : avec docker compose,
 # par config.env ; sur Render, par render.yaml (à la racine du projet), sans aucun fichier à fournir. Contexte de construction : ce dossier.
 FROM node:24-alpine

@@ -1,4 +1,4 @@
-# Ce dépôt ne sert qu'à déployer le serveur TACNET sur Render (render.yaml) : seul ce qui est listé ici est envoyé.
+# Ce dépôt ne sert qu'à déployer le serveur Atlas sur Render (render.yaml) : seul ce qui est listé ici est envoyé.
 # L'application, l'exécutable, la documentation et les profils de test restent sur le PC.
 /*
 !/.gitignore

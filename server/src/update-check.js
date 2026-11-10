@@ -1,15 +1,15 @@
 const { VERSION, parseVersion, compareVersions } = require('./version');
 
-// Dernière version publiée de TACNET (application et serveur sont publiés ensemble)
-const DEFAULT_API = 'https://api.github.com/repos/yanks-user/TACNET/releases/latest';
-const DEFAULT_PAGE = 'https://github.com/yanks-user/TACNET/releases/latest';
+// Dernière version publiée d'Atlas (application et serveur sont publiés ensemble)
+const DEFAULT_API = 'https://api.github.com/repos/yanks-user/Atlas/releases/latest';
+const DEFAULT_PAGE = 'https://github.com/yanks-user/Atlas/releases/latest';
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 8000;
 
 /** La dernière version publiée : { version, url }. Lève une erreur si GitHub ne répond pas ou répond autre chose. */
 async function fetchLatestRelease({ api = DEFAULT_API, fetchImpl = fetch } = {}) {
   const response = await fetchImpl(api, {
-    headers: { Accept: 'application/vnd.github+json', 'User-Agent': `tacnet-server/${VERSION}` },
+    headers: { Accept: 'application/vnd.github+json', 'User-Agent': `atlas-server/${VERSION}` },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   if (!response.ok) throw new Error(`réponse ${response.status}`);
@@ -42,7 +42,7 @@ function startUpdateCheck({ logger, env = process.env, fetchImpl, intervalMs = C
     try {
       const latest = await fetchLatestRelease({ api, fetchImpl });
       if (compareVersions(latest.version, VERSION) > 0) {
-        logger.warn(`[!] Nouvelle version de TACNET : ${latest.version} (ce serveur est en ${VERSION}). Détails : ${latest.url}`);
+        logger.warn(`[!] Nouvelle version d'Atlas : ${latest.version} (ce serveur est en ${VERSION}). Détails : ${latest.url}`);
         logger.warn('    Docker : remplacez les fichiers du serveur (sauf config.env), puis « docker compose up -d --build ». Render : Manual Deploy, « Deploy latest commit ». UPDATE_CHECK=off retire ce message.');
       } else {
         logger.info(`Version ${VERSION} : à jour (dernière version publiée : ${latest.version}).`);

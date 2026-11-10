@@ -1,4 +1,4 @@
-# Déploiement automatique du serveur TACNET sur Render (https://render.com).
+# Déploiement automatique du serveur Atlas sur Render (https://render.com).
 #
 #   1. Ce dépôt GitHub ne contient que le serveur (voir .gitignore) : ni application, ni mot de passe, ni données.
 #   2. Render : New + > Blueprint > choisissez le dépôt.
@@ -6,10 +6,10 @@
 #   4. Chaque push sur la branche principale redéploie le serveur.
 #
 # Adresse à donner aux joueurs (Paramètres > Serveur) : wss://<nom-du-service>.onrender.com, sans port et SANS empreinte.
-# Guide complet : README.html fourni avec TACNET, section « Héberger sur Render ».
+# Guide complet : README.html fourni avec Atlas, section « Héberger sur Render ».
 services:
   - type: web
-    name: tacnet-server
+    name: atlas-server
     runtime: docker
     # Le Dockerfile et son contexte de construction sont dans server/
     dockerfilePath: ./server/Dockerfile

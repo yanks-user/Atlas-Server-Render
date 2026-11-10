@@ -93,7 +93,7 @@ function readRemoteStorage() {
   // http:// seulement vers la machine elle-même (essais) : le jeton ne doit jamais circuler en clair sur Internet
   const local = ['127.0.0.1', 'localhost', '[::1]'].includes(parsed.hostname);
   if (parsed.protocol !== 'https:' && !(local && parsed.protocol === 'http:')) throw new Error('UPSTASH_REDIS_REST_URL doit commencer par https://.');
-  const prefix = process.env.UPSTASH_KEY_PREFIX?.trim() || 'tacnet:';
+  const prefix = process.env.UPSTASH_KEY_PREFIX?.trim() || 'atlas:';
   if (!/^[A-Za-z0-9:_-]{1,40}$/.test(prefix)) throw new Error('UPSTASH_KEY_PREFIX : lettres, chiffres, « : », « _ » et « - » seulement, 40 caractères au plus.');
   return { url: url.replace(/\/+$/, ''), token, prefix };
 }

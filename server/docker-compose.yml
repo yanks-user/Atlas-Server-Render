@@ -1,10 +1,10 @@
-# Serveur de sessions TACNET. Avant le premier lancement : cp config.env.example config.env (voir README.html)
+# Serveur de sessions Atlas. Avant le premier lancement : cp config.env.example config.env (voir README.html)
 #
 # Pour mettre à jour le serveur proprement (deux commandes, dans le dossier du dépôt) :
 #   git pull
 #   docker compose up -d --build
 services:
-  tacnet:
+  atlas:
     build: .
     restart: unless-stopped
     # Reçoit l'arrêt proprement : les sessions gardées sont enregistrées avant de quitter
@@ -23,7 +23,7 @@ services:
         bind:
           create_host_path: false
       # Configuration, certificat, pseudos, codes et sessions gardées : survivent aux mises à jour de l'image
-      - tacnet-data:/data
+      - atlas-data:/data
     read_only: true
     tmpfs:
       - /tmp
@@ -33,4 +33,4 @@ services:
       - no-new-privileges:true
 
 volumes:
-  tacnet-data:
+  atlas-data:

@@ -1,12 +1,12 @@
 // Gère les pseudos réservés (users.json) : un pseudo appartient au PC qui l'a utilisé le premier.
-// Un joueur qui change de PC (ou réinstalle TACNET) ne peut plus utiliser son pseudo : on le libère ici,
+// Un joueur qui change de PC (ou réinstalle Atlas) ne peut plus utiliser son pseudo : on le libère ici,
 // et il le réserve de nouveau, proprement, à sa prochaine connexion.
 //
 //   node scripts/users.js list [filtre]            liste les pseudos réservés (filtre : une partie du pseudo)
 //   node scripts/users.js remove "<pseudo>" ...    libère un ou plusieurs pseudos (aussi : reset, delete)
 //
 // Avec npm :     npm run users -- list
-// Avec Docker :  docker compose exec tacnet node scripts/users.js list
+// Avec Docker :  docker compose exec atlas node scripts/users.js list
 //
 // Le serveur n'a pas besoin d'être arrêté : il relit users.json dès qu'il change.
 // Même config.env que le serveur : SERVER_CONFIG y désigne le dossier de users.json.

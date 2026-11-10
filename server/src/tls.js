@@ -19,7 +19,7 @@ async function loadOrCreateCertificate({ certFile, keyFile }) {
     const notAfterDate = new Date();
     notAfterDate.setFullYear(notAfterDate.getFullYear() + CERT_VALIDITY_YEARS);
     const pems = await selfsigned.generate(
-      [{ name: 'commonName', value: 'TACNET' }],
+      [{ name: 'commonName', value: 'Atlas' }],
       { keySize: 2048, algorithm: 'sha256', notAfterDate },
     );
 
