@@ -1,4 +1,4 @@
-// Change le mot de passe du serveur : seule son empreinte est écrite dans server-config.json.
+// Serveur Atlas : change le mot de passe du serveur : seule son empreinte est écrite dans server-config.json.
 //   npm run set-password -- "mon mot de passe"   (mot de passe choisi)
 //   npm run set-password                         (mot de passe aléatoire, affiché une fois)
 // Même config.env que le serveur : SERVER_CONFIG y désigne le même fichier de config.

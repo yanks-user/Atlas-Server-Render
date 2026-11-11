@@ -1,4 +1,4 @@
-// Contrôle de santé du conteneur : le serveur accepte-t-il les connexions sur son port ?
+// Serveur Atlas : contrôle de santé du conteneur : le serveur accepte-t-il les connexions sur son port ?
 const net = require('net');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', 'config.env'), quiet: true });
