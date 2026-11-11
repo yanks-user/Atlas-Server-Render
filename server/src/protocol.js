@@ -15,6 +15,7 @@ const MESSAGE_TYPES = Object.freeze({
   TX_REQUEST: 'tx_request',         // { requestId, targets }
   TX_RELEASE: 'tx_release',         // { requestId }               fin de transmission
   PING: 'ping',                     // {}  le serveur répond 'pong'
+  SET_AVATAR: 'set-avatar',         // { image | null }  image de profil (data URL PNG, JPEG ou WebP, 12 Ko au plus), montrée aux membres de sa session
   // Gérant -> serveur
   CREATE_CHANNEL: 'create-channel', // { name }
   RENAME_CHANNEL: 'rename-channel', // { channelId, name }
@@ -61,6 +62,7 @@ const MESSAGE_TYPES = Object.freeze({
   TX_REVOKED: 'tx_revoked',         // { requestId, reason?, by? }
   SPEAKING: 'speaking',             // { from, target, active }  indicateur « en train de parler », envoyé à l'audience
   PONG: 'pong',
+  AVATAR: 'avatar',                 // { memberId, image | null }  image de profil d'un membre de la session (null : ses initiales)
   ERROR: 'error',                   // { code, message, request }
 });
 
@@ -200,6 +202,9 @@ const MAX_TEMPLATE_CHANNELS = 64;
 const TARGET_VALUES = new Set(Object.values(TARGETS));
 // Le serveur vérifie ensuite que chaque cible fait partie du routage de l'émetteur
 const MAX_TX_TARGETS = 64;
+// Image de profil : petite (l'application la réduit à 96 × 96), et sous la limite d'un message (16 Ko)
+const AVATAR_PATTERN = /^data:image\/(?:webp|png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/;
+const MAX_AVATAR_LENGTH = 12 * 1024;
 
 /** Texte affiché aux autres : espaces normalisés, sans caractères de contrôle ni invisibles. */
 function cleanText(value, { min, max }) {
@@ -308,6 +313,9 @@ const PARSERS = {
   [MESSAGE_TYPES.LEAVE_SESSION]: () => ({}),
   [MESSAGE_TYPES.JOIN_CHANNEL]: ({ channelId }) => (isChannelOrNone(channelId) ? { channelId } : 'Canal invalide.'),
   [MESSAGE_TYPES.PING]: () => ({}),
+  [MESSAGE_TYPES.SET_AVATAR]: ({ image }) => (image === null || (typeof image === 'string' && image.length <= MAX_AVATAR_LENGTH && AVATAR_PATTERN.test(image))
+    ? { image }
+    : `Image de profil invalide (PNG, JPEG ou WebP, ${MAX_AVATAR_LENGTH / 1024} Ko au plus).`),
 
   [MESSAGE_TYPES.TX_REQUEST]: ({ requestId, targets }) => (isRequestId(requestId) && Array.isArray(targets)
     && targets.length > 0 && targets.length <= MAX_TX_TARGETS && targets.every(isTarget)

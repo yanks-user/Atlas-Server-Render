@@ -257,6 +257,8 @@ function createSignalingServer({
     client.lastState = null;
     client.lastRouting = null;
     publish(session);
+    sendAvatarsTo(client);
+    if (client.avatar) shareAvatar(client);
   }
 
   /** Retire le client de sa session ; `reason` lui est envoyée ('left', 'kicked'). */
@@ -408,6 +410,34 @@ function createSignalingServer({
     publish(session);
   }
 
+  /* ---------- Images de profil ---------- */
+
+  /**
+   * Image de profil d'un membre : gardée avec sa connexion (rien n'est écrit sur le disque), envoyée aux autres membres de sa session
+   * quand elle change et quand il y entre ; celui qui entre reçoit celles des membres déjà là.
+   */
+  function handleSetAvatar(client, { image }) {
+    if (client.avatar === image) return;
+    client.avatar = image;
+    shareAvatar(client);
+  }
+
+  function shareAvatar(client) {
+    if (!client.session) return;
+    const serialized = JSON.stringify({ type: MESSAGE_TYPES.AVATAR, memberId: client.id, image: client.avatar });
+    for (const memberId of client.session.members.keys()) {
+      const other = memberId === client.id ? null : clientsById.get(memberId);
+      if (other) sendRaw(other, serialized, { buffered: true });
+    }
+  }
+
+  function sendAvatarsTo(client) {
+    for (const memberId of client.session.members.keys()) {
+      const other = memberId === client.id ? null : clientsById.get(memberId);
+      if (other?.avatar) send(client, { type: MESSAGE_TYPES.AVATAR, memberId, image: other.avatar }, { buffered: true });
+    }
+  }
+
   function handleRelay(client, { type, to, payload }) {
     // Seuls les pairs que la matrice de routage relie peuvent négocier une connexion
     if (!client.routing?.peerIds.has(to)) {
@@ -452,6 +482,8 @@ function createSignalingServer({
       // Peuvent croiser la fin d'une session (exclu, par exemple) : jamais d'erreur à afficher
       case MESSAGE_TYPES.TX_REQUEST: handleTxRequest(client, message); return;
       case MESSAGE_TYPES.TX_RELEASE: handleTxRelease(client, message); return;
+      // Hors session aussi : l'application l'envoie dès la connexion, avant de rejoindre
+      case MESSAGE_TYPES.SET_AVATAR: handleSetAvatar(client, message); return;
       default:
     }
 
@@ -497,6 +529,8 @@ function createSignalingServer({
       nickname: null,
       session: null,
       routing: null,
+      // Image de profil (data URL), null : ses initiales
+      avatar: null,
       lastState: null,
       lastRouting: null,
       graceTimer: null,
