@@ -1,3 +1,5 @@
+// Serveur Atlas : les codes de session réservés, gardés d'un lancement à l'autre.
+
 const { hashToken, tokenMatches, readReservations, writeReservations } = require('./reservation-file');
 
 const COLLECTION = 'codes';

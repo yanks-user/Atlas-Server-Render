@@ -1,3 +1,5 @@
+// Serveur Atlas : les pseudos réservés, un par PC.
+
 const fs = require('fs');
 const { hashToken, tokenMatches, readReservations, writeReservations } = require('./reservation-file');
 

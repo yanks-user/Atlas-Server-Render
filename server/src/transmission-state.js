@@ -1,3 +1,5 @@
+// Serveur Atlas : qui parle en ce moment, et vers quelles cibles.
+
 /**
  * Gestionnaire d'état de transmission d'une session : qui émet en ce moment, et vers quelles cibles.
  * Chaque prise de parole accordée (une par demande) est retenue jusqu'à sa fin. Les canaux qu'elle

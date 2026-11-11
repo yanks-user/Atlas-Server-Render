@@ -1,3 +1,5 @@
+// Serveur Atlas : limites contre les abus (débit de messages, essais de mot de passe).
+
 /**
  * Limiteur à jetons : `ratePerSecond` messages par seconde en moyenne,
  * avec une rafale possible jusqu'à `ratePerSecond` messages.

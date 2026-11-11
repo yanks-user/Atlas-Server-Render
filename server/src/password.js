@@ -1,3 +1,5 @@
+// Serveur Atlas : empreinte et vérification du mot de passe du serveur (scrypt).
+
 const { scrypt, randomBytes, timingSafeEqual } = require('crypto');
 const { promisify } = require('util');
 
