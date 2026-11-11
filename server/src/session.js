@@ -314,6 +314,15 @@ class Session {
     else channel.hears.delete(sourceId);
   }
 
+  /** « Tout cocher » : chaque canal parle à tous les autres ; « Tout décocher » : chacun ne parle plus qu'à lui-même. La RAD Générale ne change pas. */
+  setAllHearing(enabled) {
+    for (const channel of this.channels.values()) {
+      channel.hears.clear();
+      if (!enabled) continue;
+      for (const other of this.channels.keys()) if (other !== channel.id) channel.hears.add(other);
+    }
+  }
+
   /** Autorise (ou non) les membres du canal à utiliser la RAD Générale. */
   setBroadcast(channelId, enabled) {
     this.#channel(channelId).broadcast = enabled;

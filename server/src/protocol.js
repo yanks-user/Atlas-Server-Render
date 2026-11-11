@@ -25,6 +25,8 @@ const MESSAGE_TYPES = Object.freeze({
   // « Qui parle à qui » : une case = « le canal sourceId parle (RAD Ext) au canal channelId » (côté serveur : channelId l'entend)
   SET_HEARING: 'set-hearing',       // { channelId, sourceId, enabled }  sourceId parle (ou non) à channelId
   SET_BROADCAST: 'set-broadcast',   // { channelId, enabled }            le canal peut diffuser à tous
+  // Bouton « Tout cocher / Tout décocher » : toutes les cases d'un coup (une case par requête dépasserait la limite de messages)
+  SET_ALL_HEARING: 'set-all-hearing', // { enabled }  chaque canal parle (ou non) à tous les autres
   // RAD prioritaire (réglage allowPriorityRad) : le canal coupe la parole de qui occupe déjà un canal qu'il vise, même en Half-Duplex
   SET_PRIORITY: 'set-priority',     // { channelId, enabled }
   KICK_MEMBER: 'kick-member',       // { memberId }
@@ -169,6 +171,7 @@ const COMMAND_PERMISSIONS = new Map([
   [MESSAGE_TYPES.MOVE_MEMBER, PERMISSIONS.MOVE_MEMBERS],
   [MESSAGE_TYPES.SET_HEARING, PERMISSIONS.MANAGE_ROUTING],
   [MESSAGE_TYPES.SET_BROADCAST, PERMISSIONS.MANAGE_ROUTING],
+  [MESSAGE_TYPES.SET_ALL_HEARING, PERMISSIONS.MANAGE_ROUTING],
   [MESSAGE_TYPES.SET_PRIORITY, PERMISSIONS.MANAGE_ROUTING],
   [MESSAGE_TYPES.KICK_MEMBER, PERMISSIONS.KICK_MEMBERS],
   [MESSAGE_TYPES.SET_LOCKED, PERMISSIONS.LOCK_SESSION],
@@ -348,6 +351,10 @@ const PARSERS = {
   [MESSAGE_TYPES.SET_BROADCAST]: ({ channelId, enabled }) => (isId(channelId)
     ? { channelId, enabled: enabled === true }
     : 'Canal invalide.'),
+
+  [MESSAGE_TYPES.SET_ALL_HEARING]: ({ enabled }) => (typeof enabled === 'boolean'
+    ? { enabled }
+    : 'Règle d\'écoute invalide.'),
 
   [MESSAGE_TYPES.SET_PRIORITY]: ({ channelId, enabled }) => (isId(channelId)
     ? { channelId, enabled: enabled === true }

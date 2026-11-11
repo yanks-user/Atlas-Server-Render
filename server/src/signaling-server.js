@@ -373,6 +373,7 @@ function createSignalingServer({
       case MESSAGE_TYPES.MOVE_MEMBER: session.moveMember(message.memberId, message.channelId); break;
       case MESSAGE_TYPES.SET_HEARING: session.setHearing(message.channelId, message.sourceId, message.enabled); break;
       case MESSAGE_TYPES.SET_BROADCAST: session.setBroadcast(message.channelId, message.enabled); break;
+      case MESSAGE_TYPES.SET_ALL_HEARING: session.setAllHearing(message.enabled); break;
       case MESSAGE_TYPES.SET_PRIORITY: session.setPriority(message.channelId, message.enabled); break;
       case MESSAGE_TYPES.SET_MANAGER:
         session.setManager(message.memberId);
