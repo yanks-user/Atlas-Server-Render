@@ -2,7 +2,6 @@ LICENCE DU SERVEUR ATLAS
 Version 2, novembre 2026
 
 Copyright (c) 2026 Yann Bouthors.
-Contact : bouthorsyann@gmail.com
 Tous droits réservés, sauf ce qui est permis ci-dessous.
 
 Cette licence couvre le serveur Atlas publié dans ce dépôt : son code, ses fichiers
