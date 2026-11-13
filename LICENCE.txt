@@ -1,0 +1,54 @@
+LICENCE DU SERVEUR ATLAS
+Version 2, novembre 2026
+
+Copyright (c) 2026 Yann Bouthors.
+Contact : bouthorsyann@gmail.com
+Tous droits réservés, sauf ce qui est permis ci-dessous.
+
+Cette licence couvre le serveur Atlas publié dans ce dépôt : son code, ses fichiers
+de déploiement (Dockerfile, render.yaml, docker-compose.yml) et leur documentation.
+
+L'application Atlas Comms n'est distribuée que par le Microsoft Store. Elle n'est pas
+couverte par ce fichier : son utilisation relève des conditions du Microsoft Store
+et de sa propre licence.
+
+Les dépendances du serveur (ws, selfsigned, dotenv), installées par npm à la
+construction, gardent leurs propres licences.
+
+
+VOUS POUVEZ, GRATUITEMENT
+
+- Héberger le serveur pour vous et les personnes avec qui vous communiquez, à titre
+  personnel, associatif ou professionnel : sur Render, avec Docker ou sur votre machine.
+- Adapter sa configuration : variables d'environnement, config.env, docker-compose.yml,
+  reverse proxy.
+- Partager gratuitement des copies non modifiées du serveur, avec ce fichier.
+
+
+VOUS NE POUVEZ PAS, SANS L'ACCORD ÉCRIT DE L'AUTEUR
+
+- Vendre le serveur ou le faire payer, y compris sous forme de service hébergé.
+- Modifier son code, ou distribuer une version modifiée.
+- Réutiliser son code dans un autre logiciel.
+- Retirer ce fichier ou les mentions de licence, ou présenter le serveur comme votre création.
+
+
+CE QUI RESTE TOUJOURS PERMIS
+
+- Ce texte ne limite pas les droits que vous donnent les licences des dépendances.
+- Ce que la loi vous autorise même sans permission reste permis.
+
+
+À PROPOS DU DÉVELOPPEMENT
+
+Atlas est développé en « vibecoding » : le code est produit avec l'aide d'une
+intelligence artificielle, guidée par l'auteur à partir d'instructions en langage naturel.
+Cette mention est donnée à titre d'information ; elle ne modifie pas les termes de cette licence.
+
+
+AUCUNE GARANTIE
+
+Le serveur est fourni tel quel, sans aucune garantie. Vous êtes responsable du serveur
+que vous hébergez : son mot de passe, ses mises à jour et les données qu'il garde
+(pseudos, sessions). Dans les limites permises par la loi, l'auteur n'est pas responsable
+des dommages liés à son utilisation.

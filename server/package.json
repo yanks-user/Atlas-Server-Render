@@ -1,6 +1,6 @@
 {
   "name": "atlas-server",
-  "version": "1.16.2",
+  "version": "1.16.3",
   "description": "Serveur de sessions et de signalisation WebRTC (communication vocale)",
   "main": "src/index.js",
   "scripts": {
