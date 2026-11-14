@@ -1,7 +1,7 @@
 const { randomUUID, randomBytes } = require('crypto');
 const { WebSocketServer, WebSocket } = require('ws');
 const { MESSAGE_TYPES, ERROR_CODES, RELAYED_TYPES, COMMAND_PERMISSIONS, MANAGER_TYPES, parseMessage } = require('./protocol');
-const { SessionRegistry, SessionError } = require('./session');
+const { SessionRegistry, SessionError, NO_MUTES } = require('./session');
 const { RateLimiter, AuthGuard } = require('./security');
 const { verifyPassword } = require('./password');
 const { NicknameRegistry } = require('./nickname-registry');
@@ -202,11 +202,11 @@ function createSignalingServer({
    * que la parole soit accordée, sans attendre que la personne lâche sa touche.
    */
   function handleTxRequest(client, { requestId, targets }) {
-    const { granted, occupant, preempted } = client.session
-      ? client.session.requestTransmission(client.id, requestId, targets)
+    const { granted, occupant, preempted, reason, mutedBy } = client.session
+      ? client.session.requestTransmission(client.id, requestId, targets, mutesOf)
       : { granted: false, occupant: null, preempted: [] };
     if (!granted) {
-      send(client, { type: MESSAGE_TYPES.TX_DENIED, requestId, targets, by: occupant });
+      send(client, { type: MESSAGE_TYPES.TX_DENIED, requestId, targets, by: occupant, ...(reason ? { reason } : {}) });
       return;
     }
     for (const cut of preempted) {
@@ -217,8 +217,18 @@ function createSignalingServer({
       refreshSpeaking(cutClient);
       logger.info(`[>] ${label(client)} prend la parole en RAD prioritaire et coupe ${label(cutClient)} (${client.session.code})`);
     }
-    send(client, { type: MESSAGE_TYPES.TX_GRANTED, requestId, targets });
+    send(client, { type: MESSAGE_TYPES.TX_GRANTED, requestId, targets, ...(mutedBy ? { mutedBy: true } : {}) });
     refreshSpeaking(client);
+  }
+
+  /** Sourdines annoncées par ce membre (voir handleSetMutes) ; aucune s'il n'en a pas annoncé. */
+  function mutesOf(memberId) {
+    return clientsById.get(memberId)?.mutes ?? NO_MUTES;
+  }
+
+  /** Gardées tant que la connexion dure, session ou pas : l'application les renvoie à chaque reconnexion et à chaque changement. */
+  function handleSetMutes(client, { members, channels }) {
+    client.mutes = { members: new Set(members), channels: new Set(channels) };
   }
 
   function handleTxRelease(client, { requestId }) {
@@ -485,6 +495,7 @@ function createSignalingServer({
       case MESSAGE_TYPES.TX_RELEASE: handleTxRelease(client, message); return;
       // Hors session aussi : l'application l'envoie dès la connexion, avant de rejoindre
       case MESSAGE_TYPES.SET_AVATAR: handleSetAvatar(client, message); return;
+      case MESSAGE_TYPES.SET_MUTES: handleSetMutes(client, message); return;
       default:
     }
 
@@ -532,6 +543,8 @@ function createSignalingServer({
       routing: null,
       // Image de profil (data URL), null : ses initiales
       avatar: null,
+      // Ce qu'il a mis en sourdine pour lui-même (voir handleSetMutes)
+      mutes: NO_MUTES,
       lastState: null,
       lastRouting: null,
       graceTimer: null,

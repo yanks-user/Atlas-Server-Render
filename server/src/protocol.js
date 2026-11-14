@@ -16,6 +16,9 @@ const MESSAGE_TYPES = Object.freeze({
   TX_RELEASE: 'tx_release',         // { requestId }               fin de transmission
   PING: 'ping',                     // {}  le serveur répond 'pong'
   SET_AVATAR: 'set-avatar',         // { image | null }  image de profil (data URL PNG, JPEG ou WebP, 12 Ko au plus), montrée aux membres de sa session
+  // Ce que ce membre a mis en sourdine pour lui-même : des membres, des canaux (liste complète à chaque fois). Le serveur ne le
+  // montre à personne : il s'en sert seulement pour répondre à une demande de parole (voir tx_denied et tx_granted)
+  SET_MUTES: 'set-mutes',           // { members: [id], channels: [id] }
   // Gérant -> serveur
   CREATE_CHANNEL: 'create-channel', // { name }
   RENAME_CHANNEL: 'rename-channel', // { channelId, name }
@@ -57,8 +60,10 @@ const MESSAGE_TYPES = Object.freeze({
   SESSION: 'session',              // { code, name, locked, settings, managerId, absentManager, customRoles, channels, members, restricted? }
   ROUTING: 'routing',               // { targets, audience: { cible: [id] }, peers: [{ id, send, receive }] }
   SESSION_ENDED: 'session-ended',   // { reason: 'left' | 'kicked' }
-  TX_GRANTED: 'tx_granted',         // { requestId, targets }  le micro peut s'ouvrir
-  TX_DENIED: 'tx_denied',           // { requestId, targets, by }  by : le membre qui occupe la cible (null : cible non autorisée)
+  // mutedBy: true : quelqu'un qui l'entendrait l'a mis en sourdine (lui seul) ; les autres l'entendent
+  TX_GRANTED: 'tx_granted',         // { requestId, targets, mutedBy? }  le micro peut s'ouvrir
+  // by : le membre qui occupe la cible (null : cible non autorisée) ; reason 'channel-muted' : un membre d'un canal visé a mis en sourdine le canal de l'émetteur
+  TX_DENIED: 'tx_denied',           // { requestId, targets, by, reason? }
   // Émission annulée par le serveur : déplacé dans un autre canal, cible retirée, devenu auditeur…
   // reason: 'priority' quand une RAD prioritaire a coupé la parole (by : le membre qui l'a prise)
   TX_REVOKED: 'tx_revoked',         // { requestId, reason?, by? }
@@ -208,6 +213,9 @@ const MAX_TX_TARGETS = 64;
 // Image de profil : petite (l'application la réduit à 96 × 96), et sous la limite d'un message (16 Ko)
 const AVATAR_PATTERN = /^data:image\/(?:webp|png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/;
 const MAX_AVATAR_LENGTH = 12 * 1024;
+// Sourdines annoncées : au-delà, la liste est refusée (une session compte bien moins de membres et de canaux)
+const MAX_MUTED_MEMBERS = 256;
+const MAX_MUTED_CHANNELS = 128;
 
 /** Texte affiché aux autres : espaces normalisés, sans caractères de contrôle ni invisibles. */
 function cleanText(value, { min, max }) {
@@ -319,6 +327,10 @@ const PARSERS = {
   [MESSAGE_TYPES.SET_AVATAR]: ({ image }) => (image === null || (typeof image === 'string' && image.length <= MAX_AVATAR_LENGTH && AVATAR_PATTERN.test(image))
     ? { image }
     : `Image de profil invalide (PNG, JPEG ou WebP, ${MAX_AVATAR_LENGTH / 1024} Ko au plus).`),
+  [MESSAGE_TYPES.SET_MUTES]: ({ members, channels }) => (Array.isArray(members) && members.length <= MAX_MUTED_MEMBERS && members.every(isId)
+    && Array.isArray(channels) && channels.length <= MAX_MUTED_CHANNELS && channels.every(isId)
+    ? { members: [...new Set(members)], channels: [...new Set(channels)] }
+    : 'Sourdines invalides.'),
 
   [MESSAGE_TYPES.TX_REQUEST]: ({ requestId, targets }) => (isRequestId(requestId) && Array.isArray(targets)
     && targets.length > 0 && targets.length <= MAX_TX_TARGETS && targets.every(isTarget)

@@ -17,6 +17,8 @@ const ROLE_ID_BYTES = 6;
 const BASE_ROLES = new Set(Object.values(ROLES));
 // Plusieurs RAD peuvent être maintenus ensemble ; au-delà, ce n'est plus un joueur qui appuie
 const MAX_TRANSMISSIONS_PER_MEMBER = 16;
+// Sourdines d'un membre qui n'en a annoncé aucune (ou application trop ancienne pour le faire)
+const NO_MUTES = Object.freeze({ members: new Set(), channels: new Set() });
 // Ceux qui encadrent les autres (placer, régler, exclure, tout entendre) gardent la vue d'ensemble quand les canaux sont masqués :
 // sans elle, ils ne pourraient pas faire ce que leur rôle leur permet
 const SUPERVISION_PERMISSIONS = Object.freeze([
@@ -452,13 +454,18 @@ class Session {
    * Demande de parole vers ces cibles : accordée ou refusée d'un bloc. En Half-Duplex, refusée si un
    * autre membre émet déjà vers l'un des canaux qu'elles atteignent, sauf pour une RAD prioritaire (voir
    * #canCut) : les émissions qui occupaient ces canaux sont alors coupées, et la parole lui est accordée.
-   * @returns {{ granted: boolean, occupant: string | null, preempted: { memberId: string, requestId: number }[] }}
+   *
+   * Sourdines (mutesOf : ce que chaque membre a coupé pour lui-même, voir MESSAGE_TYPES.SET_MUTES) :
+   * - un membre d'un canal visé a mis en sourdine le canal de l'émetteur : refusée (reason 'channel-muted') ;
+   * - un membre qui l'entendrait l'a mis en sourdine, lui seul : accordée quand même (mutedBy), les autres l'entendent.
+   * @returns {{ granted: boolean, occupant: string | null, preempted: { memberId: string, requestId: number }[], reason?: string, mutedBy?: boolean }}
    *   occupant : le membre qui occupe le canal ; preempted : les émissions coupées pour donner la parole
    */
-  requestTransmission(memberId, requestId, targets) {
+  requestTransmission(memberId, requestId, targets, mutesOf = () => NO_MUTES) {
     const reachable = this.targetChannels(memberId);
     const allowed = targets.every((target) => reachable.has(target));
     if (!allowed || this.transmissions.countOf(memberId) >= MAX_TRANSMISSIONS_PER_MEMBER) return { granted: false, occupant: null, preempted: [] };
+    if (this.#channelMutedBy(memberId, targets, reachable, mutesOf)) return { granted: false, occupant: null, preempted: [], reason: 'channel-muted' };
 
     let preempted = [];
     if (this.settings.halfDuplexMode) {
@@ -471,7 +478,29 @@ class Session {
       for (const blocker of preempted) this.transmissions.release(blocker.memberId, blocker.requestId);
     }
     this.transmissions.hold(memberId, requestId, { targets, channelId: this.members.get(memberId).channelId });
-    return { granted: true, occupant: null, preempted };
+    return { granted: true, occupant: null, preempted, mutedBy: this.#memberMutedBy(memberId, targets, reachable, mutesOf) };
+  }
+
+  /**
+   * Un membre d'un canal visé a mis en sourdine le canal de l'émetteur. Seuls comptent les canaux visés autres que le sien
+   * (son propre canal ne se met pas en sourdine) ; Général s'adresse à toute la session, pas à un canal : il n'est jamais refusé pour ça.
+   */
+  #channelMutedBy(memberId, targets, reachable, mutesOf) {
+    const own = this.members.get(memberId).channelId;
+    const visited = new Set(targets.filter((target) => target !== TARGETS.GLOBAL).flatMap((target) => [...reachable.get(target)]));
+    visited.delete(own);
+    return [...this.members.values()].some((m) => m.id !== memberId && visited.has(m.channelId) && mutesOf(m.id).channels.has(own));
+  }
+
+  /** Quelqu'un qui l'entendrait l'a coupé : lui seul, ou son canal par Général (les autres l'entendent quand même). */
+  #memberMutedBy(memberId, targets, reachable, mutesOf) {
+    const own = this.members.get(memberId).channelId;
+    const reached = new Set(targets.flatMap((target) => [...reachable.get(target)]));
+    return [...this.members.values()].some((m) => {
+      if (m.id === memberId || !m.channelId || !(reached.has(m.channelId) || this.#hearsEverything(m.id))) return false;
+      const mutes = mutesOf(m.id);
+      return mutes.members.has(memberId) || (m.channelId !== own && mutes.channels.has(own));
+    });
   }
 
   /** La RAD prioritaire est autorisé par la session et ce membre parle depuis un canal prioritaire. */
@@ -697,4 +726,4 @@ class SessionRegistry {
   }
 }
 
-module.exports = { Session, SessionRegistry, SessionError, SESSION_LIMITS, CODE_ALPHABET };
+module.exports = { Session, SessionRegistry, SessionError, SESSION_LIMITS, CODE_ALPHABET, NO_MUTES };
