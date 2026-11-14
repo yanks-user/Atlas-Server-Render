@@ -19,6 +19,8 @@ const MESSAGE_TYPES = Object.freeze({
   // Ce que ce membre a mis en sourdine pour lui-même : des membres, des canaux (liste complète à chaque fois). Le serveur ne le
   // montre à personne : il s'en sert seulement pour répondre à une demande de parole (voir tx_denied et tx_granted)
   SET_MUTES: 'set-mutes',           // { members: [id], channels: [id] }
+  // Libère son pseudo (avant de désinstaller Atlas, par exemple) : seulement s'il est réservé à son propre jeton, et hors session
+  RELEASE_NICKNAME: 'release-nickname', // { nickname }  réponse : nickname-released
   // Gérant -> serveur
   CREATE_CHANNEL: 'create-channel', // { name }
   RENAME_CHANNEL: 'rename-channel', // { channelId, name }
@@ -70,6 +72,8 @@ const MESSAGE_TYPES = Object.freeze({
   SPEAKING: 'speaking',             // { from, target, active }  indicateur « en train de parler », envoyé à l'audience
   PONG: 'pong',
   AVATAR: 'avatar',                 // { memberId, image | null }  image de profil d'un membre de la session (null : ses initiales)
+  // result : 'released' (libéré), 'free' (n'était pas réservé), 'other' (réservé à un autre PC), 'in-session', 'error'
+  NICKNAME_RELEASED: 'nickname-released', // { nickname, result }
   ERROR: 'error',                   // { code, message, request }
 });
 
@@ -331,6 +335,10 @@ const PARSERS = {
     && Array.isArray(channels) && channels.length <= MAX_MUTED_CHANNELS && channels.every(isId)
     ? { members: [...new Set(members)], channels: [...new Set(channels)] }
     : 'Sourdines invalides.'),
+  [MESSAGE_TYPES.RELEASE_NICKNAME]: ({ nickname }) => {
+    const clean = cleanText(nickname, NICKNAME_LENGTH);
+    return clean ? { nickname: clean } : NICKNAME_ERROR;
+  },
 
   [MESSAGE_TYPES.TX_REQUEST]: ({ requestId, targets }) => (isRequestId(requestId) && Array.isArray(targets)
     && targets.length > 0 && targets.length <= MAX_TX_TARGETS && targets.every(isTarget)

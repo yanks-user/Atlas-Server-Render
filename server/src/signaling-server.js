@@ -226,6 +226,29 @@ function createSignalingServer({
     return clientsById.get(memberId)?.mutes ?? NO_MUTES;
   }
 
+  /**
+   * « Libérer mon pseudo » : seulement le sien (réservé à son jeton) et hors session, où il sert encore. Le joueur qui
+   * l'utilise ensuite le réserve à son tour ; l'application oublie le pseudo, pour ne pas le reprendre à la reconnexion.
+   */
+  function handleReleaseNickname(client, { nickname }) {
+    let result;
+    if (client.session) result = 'in-session';
+    else if (!client.identityToken) result = 'other';
+    else {
+      try {
+        result = nicknames.releaseOwn(nickname, client.identityToken);
+      } catch (err) {
+        logger.warn(`[!] pseudo « ${nickname} » non libéré : ${err.message}`);
+        result = 'error';
+      }
+    }
+    if (result === 'released') {
+      logger.info(`[-] pseudo « ${nickname} » libéré par son joueur`);
+      if (client.nickname?.toLocaleLowerCase('fr') === nickname.toLocaleLowerCase('fr')) client.nickname = null;
+    }
+    send(client, { type: MESSAGE_TYPES.NICKNAME_RELEASED, nickname, result });
+  }
+
   /** Gardées tant que la connexion dure, session ou pas : l'application les renvoie à chaque reconnexion et à chaque changement. */
   function handleSetMutes(client, { members, channels }) {
     client.mutes = { members: new Set(members), channels: new Set(channels) };
@@ -496,6 +519,7 @@ function createSignalingServer({
       // Hors session aussi : l'application l'envoie dès la connexion, avant de rejoindre
       case MESSAGE_TYPES.SET_AVATAR: handleSetAvatar(client, message); return;
       case MESSAGE_TYPES.SET_MUTES: handleSetMutes(client, message); return;
+      case MESSAGE_TYPES.RELEASE_NICKNAME: handleReleaseNickname(client, message); return;
       default:
     }
 

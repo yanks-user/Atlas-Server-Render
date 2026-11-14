@@ -22,11 +22,19 @@ function tokenMatches(token, tokenHash) {
  * (le serveur refuse de démarrer) : repartir de zéro libérerait toutes les réservations.
  */
 function readReservations(filePath, collection) {
+  return readReservationsFile(filePath, collection).entries;
+}
+
+/**
+ * Comme readReservations, avec en plus les autres champs du fichier (meta), par exemple la remise à zéro déjà faite
+ * des pseudos (voir nickname-registry.js). Fichier absent : { entries: [], meta: {} }.
+ */
+function readReservationsFile(filePath, collection) {
   let content;
   try {
     content = fs.readFileSync(filePath, 'utf8');
   } catch (err) {
-    if (err.code === 'ENOENT') return [];
+    if (err.code === 'ENOENT') return { entries: [], meta: {} };
     throw err;
   }
 
@@ -42,7 +50,8 @@ function readReservations(filePath, collection) {
   for (const [key, entry] of Object.entries(entries)) {
     if (!TOKEN_HASH_PATTERN.test(entry?.tokenHash)) throw new Error(`${filePath} : entrée « ${key} » invalide.`);
   }
-  return Object.entries(entries);
+  const { version: _version, [collection]: _entries, ...meta } = parsed;
+  return { entries: Object.entries(entries), meta };
 }
 
 /**
@@ -50,8 +59,8 @@ function readReservations(filePath, collection) {
  * En cas d'échec, elles restent valables en mémoire jusqu'au prochain redémarrage.
  * Retourne true si le fichier a été écrit.
  */
-function writeReservations(filePath, collection, entries, logger) {
-  const content = { version: FILE_VERSION, [collection]: Object.fromEntries(entries) };
+function writeReservations(filePath, collection, entries, logger, meta = {}) {
+  const content = { version: FILE_VERSION, ...meta, [collection]: Object.fromEntries(entries) };
   const text = `${JSON.stringify(content, null, 2)}\n`;
   const tmpPath = `${filePath}.tmp`;
   try {
@@ -82,4 +91,4 @@ function onReservationsWritten(listener) {
   return () => writeListeners.delete(listener);
 }
 
-module.exports = { hashToken, tokenMatches, readReservations, writeReservations, onReservationsWritten };
+module.exports = { hashToken, tokenMatches, readReservations, readReservationsFile, writeReservations, onReservationsWritten };
